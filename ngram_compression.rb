@@ -19,12 +19,16 @@ end
 #connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
 
 def gamma(number,x)
-  digit = Math.log2(x).ceil
+  digit = x.bit_length
   (number << (digit + digit - 1)) + x
 end
 
-code = ''
-sum = 0
+
+def delta(number,x)
+  digit = x.bit_length
+  (gamma(number,digit) << (digit - 1)) + digit - (1 << digit)
+end
+
 ary = []
 bin = 0
 (1..words.count-1).each do |i|
@@ -32,9 +36,10 @@ bin = 0
   ndic = dic[words[i-1]]
   ndic[words[i]] = ndic.count + 1 if ndic[words[i]] == nil
   ary.push(ndic[words[i]])
-  bin = gamma(bin,i)
+  bin = delta(bin,ndic[words[i]])
 end
-p Math.log2(bin).ceil
+p bin.to_s(2)
+p bin.bit_length
 
 
 # data = Array.new(ary.max,0)
@@ -63,6 +68,7 @@ p Math.log2(bin).ceil
 #p sum
 #p code
 #p code.size
+
 #30767961b
 #3848496B
 #3.848495125MB
@@ -71,7 +77,14 @@ p Math.log2(bin).ceil
 #108812B
 #108KB
 
-
 #720166b
 #90020.75B
 #90KB
+
+
+#244457b
+#66991B
+#67KB
+
+
+#zip 55KB

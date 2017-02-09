@@ -18,17 +18,32 @@ end
 
 #connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
 
+def alpha(number,x)
+  (number << x) + x
+end
+
 def gamma(number,x)
   digit = x.bit_length
   (number << (digit + digit - 1)) + x
 end
-
 
 def delta(number,x)
   digit = x.bit_length
   (gamma(number,digit) << (digit - 1)) + digit - (1 << digit)
 end
 
+def omega(number,x)
+  code = 0
+  y = x
+  while y > 1
+    code = (y << code.bit_length) + code
+    y = y.bit_length - 1
+  end
+  code << 1
+  (number << code.bit_length) + code
+end
+
+dic = {}
 ary = []
 bin = 0
 (1..words.count-1).each do |i|
@@ -36,9 +51,9 @@ bin = 0
   ndic = dic[words[i-1]]
   ndic[words[i]] = ndic.count + 1 if ndic[words[i]] == nil
   ary.push(ndic[words[i]])
-  bin = delta(bin,ndic[words[i]])
+  bin = omega(bin,ndic[words[i]])
 end
-p bin.to_s(2)
+#p bin.to_s(2)
 p bin.bit_length
 
 
@@ -69,22 +84,29 @@ p bin.bit_length
 #p code
 #p code.size
 
+#alpha
 #30767961b
 #3848496B
 #3.848495125MB
 
+#alpha -nodic
 #870494
 #108812B
 #108KB
 
-#720166b
-#90020.75B
-#90KB
+#gamma
+#269513b
+#33689.125B
+#33KB
 
-
+#delta
 #244457b
-#66991B
-#67KB
+#30557.125B
+#30KB
 
+#omega
+#161277b
+#20159.625
+#20KB
 
 #zip 55KB

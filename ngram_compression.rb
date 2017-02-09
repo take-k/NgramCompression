@@ -1,23 +1,6 @@
 #require 'pg'
 require 'csv'
 
-str = ''
-open('cantrbry/alice29.txt') do |io|
-  str = io.read
-end
-words = str.split(/[\s,.;:`()]/) - [""]
-
-#辞書作成　
-#符号化 [word1][word2] > rank
-#復号 [word1,rank] > word2
-dic = {}
-CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
-  dic[row[0]] = {} if dic[row[0]] == nil
-  dic[row[0]][row[1]] = row[2].to_i
-end
-
-#connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
-
 def alpha(number,x)
   (number << x) + x
 end
@@ -34,28 +17,66 @@ end
 
 def omega(number,x)
   code = 0
+  return (number << 1) if x == 1 #最下位ビットに0
   y = x
   while y > 1
     code = (y << code.bit_length) + code
     y = y.bit_length - 1
   end
-  code << 1
+  code = code << 1 #最下位ビットに0
   (number << code.bit_length) + code
 end
 
-dic = {}
-ary = []
-bin = 0
-(1..words.count-1).each do |i|
-  dic[words[i-1]] = {} if dic[words[i-1]] == nil
-  ndic = dic[words[i-1]]
-  ndic[words[i]] = ndic.count + 1 if ndic[words[i]] == nil
-  ary.push(ndic[words[i]])
-  bin = omega(bin,ndic[words[i]])
+def d_omega(number)
+  ary = []
+  codes = number
+  length = number.bit_length
+  while length > 0
+    n = 1
+    while codes[length - 1] == 1
+      length -= (n + 1)
+      (n,codes) = codes.divmod(1 << length)
+    end
+    ary.push(n)
+    length -= 1
+  end
+  ary
 end
-#p bin.to_s(2)
-p bin.bit_length
 
+def encode
+  str = ''
+  open('cantrbry/alice29.txt') do |io|
+    str = io.read
+  end
+  words = str.split(/[\s,.;:`()]/) - [""]
+
+  #辞書作成　
+  #符号化 [word1][word2] > rank
+  #復号 [word1,rank] > word2
+  dic = {}
+  CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
+    dic[row[0]] = {} if dic[row[0]] == nil
+    dic[row[0]][row[1]] = row[2].to_i
+  end
+
+  #connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
+  #dic = {}
+  ary = []
+  bin = 0
+  (1..words.count-1).each do |i|
+    dic[words[i-1]] = {} if dic[words[i-1]] == nil
+    ndic = dic[words[i-1]]
+    ndic[words[i]] = ndic.count + 1 if ndic[words[i]] == nil
+    ary.push(ndic[words[i]])
+    bin = omega(bin,ndic[words[i]])
+  end
+  #p bin.to_s(2)
+  p bin.bit_length
+  p ary
+  p d_omega(bin)
+end
+
+encode
 
 # data = Array.new(ary.max,0)
 # ary.each { |x|
@@ -105,8 +126,8 @@ p bin.bit_length
 #30KB
 
 #omega
-#161277b
-#20159.625
-#20KB
+#260309b
+#32538.625B
+#32.5KB
 
 #zip 55KB

@@ -1,5 +1,6 @@
-#require 'pg'
 require 'csv'
+#require 'pg'
+#connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
 
 def alpha(number,x)
   (number << x) + x
@@ -48,36 +49,52 @@ def encode
   open('cantrbry/alice29.txt') do |io|
     str = io.read
   end
-  words = str.split(/[\s,.;:`()]/) - [""]
-
+  excludes = [',','.',';',':','`','\n','\r']
+  words = str.split(/ |(,)|(\.)|(;)|(:)|(`)|(\n)|(\r)/)
   #辞書作成　
   #符号化 [word1][word2] > rank
-  #復号 [word1,rank] > word2
+  #復号 [word1][rank]> word2
   dic = {}
+  decode_dic = {}
   CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
     dic[row[0]] = {} if dic[row[0]] == nil
     dic[row[0]][row[1]] = row[2].to_i
+    decode_dic[row[0]] = {} if decode_dic[row[0]] == nil
+    decode_dic[row[0]][row[2].to_i] = row[1]
   end
 
-  #connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
-  #dic = {}
   ary = []
-  bin = 0
+  bin = 4
   (1..words.count-1).each do |i|
     dic[words[i-1]] = {} if dic[words[i-1]] == nil
-    ndic = dic[words[i-1]]
-    ndic[words[i]] = ndic.count + 1 if ndic[words[i]] == nil
-    ary.push(ndic[words[i]])
-    bin = omega(bin,ndic[words[i]])
+    rank_dic = dic[words[i-1]]
+    if rank_dic[words[i]] == nil
+      rank = rank_dic.count + 1
+      rank_dic[words[i]] = rank
+      decode_dic[words[i-1]] = {} if decode_dic[words[i-1]] == nil
+      decode_dic[words[i-1]][rank] = words[i]
+    end
+    ary.push(rank_dic[words[i]])
+    bin = omega(bin,rank_dic[words[i]])
   end
-  #p bin.to_s(2)
-  p bin.bit_length
-  p ary
-  p d_omega(bin)
+  p bin.bit_length / 8
+
+  ranks = ary
+  #ranks = d_omega(bin)
+  #ranks.shift
+
+  str = words[0]
+  pre = words[0]
+  ranks.each do |rank|
+    pre = decode_dic[pre][rank]
+    str += ' ' if !excludes.include?(pre)
+    str += pre
+  end
+  File.open("decode.txt", "w") do |f|
+    f.puts(str)
+  end
 end
-
 encode
-
 # data = Array.new(ary.max,0)
 # ary.each { |x|
 #   data[x] = 0 if data[x] == nil

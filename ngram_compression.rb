@@ -1,6 +1,6 @@
 require 'csv'
-#require 'pg'
-#connection = PG::Connection(:host =>"localhost",:dbname => "coca2gram")
+require 'pg'
+connection = PG::connect(dbname: "ngram")
 
 def alpha(number,x)
   (number << x) + x
@@ -44,6 +44,28 @@ def d_omega(number)
   ary
 end
 
+def dic(keywords,encode_add_dic,decode_add_dic)
+  words = keywords
+  condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+  results = connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+  if results.count == 0
+    word1_count_results = connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
+    last = words.pop
+    encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    rank = word1_count_results[0]['count'].to_i + encode_last_dic[word1].count + 1
+    encode_last_dic[last] = rank
+    decode_last_dic[rank] = last
+  else
+    rank = results[0]['rank'].to_i
+  end
+  rank
+end
+
+def setup
+
+end
+
 def encode
   str = ''
   open('cantrbry/alice29.txt') do |io|
@@ -77,7 +99,7 @@ def encode
     ary.push(rank_dic[words[i]])
     bin = omega(bin,rank_dic[words[i]])
   end
-  p bin.bit_length / 8
+  p bin.bit_length
 
   ranks = ary
   #ranks = d_omega(bin)
@@ -94,7 +116,8 @@ def encode
     f.puts(str)
   end
 end
-encode
+
+connection.finish
 # data = Array.new(ary.max,0)
 # ary.each { |x|
 #   data[x] = 0 if data[x] == nil

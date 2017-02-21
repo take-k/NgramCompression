@@ -1,6 +1,7 @@
 require 'csv'
 require 'pg'
-connection = PG::connect(dbname: "ngram")
+require 'benchmark'
+include Benchmark
 
 def alpha(number,x)
   (number << x) + x
@@ -44,80 +45,132 @@ def d_omega(number)
   ary
 end
 
-def dic(keywords,encode_add_dic,decode_add_dic)
-  words = keywords
-  condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-  results = connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
-  if results.count == 0
-    word1_count_results = connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
+class NgramTableFromPg
+  def setup(encode_dic,decode_dic)
+    @connection = PG::connect(dbname: "ngram")
+  end
+
+  def rank(keywords,encode_add_dic,decode_add_dic)
+    words = keywords
+    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+    if results.count == 0
+      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
+      last = words.pop
+      encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      return encode_last_dic[last] if encode_last_dic[last] != nil
+      decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
+      encode_last_dic[last] = rank
+      decode_last_dic[rank] = last
+    else
+      rank = results[0]['rank'].to_i
+    end
+    rank
+  end
+
+  def finish
+    @connection.finish
+  end
+
+end
+
+class NgramTableFromCsv
+  def setup(encode_dic,decode_dic)
+    CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
+      encode_dic[row[0]] = {} if encode_dic[row[0]] == nil
+      encode_dic[row[0]][row[1]] = row[2].to_i
+      decode_dic[row[0]] = {} if decode_dic[row[0]] == nil
+      decode_dic[row[0]][row[2].to_i] = row[1]
+    end
+  end
+
+  def rank(keywords,encode_add_dic,decode_add_dic)
+    words = keywords
     last = words.pop
     encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    rank = word1_count_results[0]['count'].to_i + encode_last_dic[word1].count + 1
-    encode_last_dic[last] = rank
-    decode_last_dic[rank] = last
-  else
-    rank = results[0]['rank'].to_i
-  end
-  rank
-end
-
-def setup
-
-end
-
-def encode
-  str = ''
-  open('cantrbry/alice29.txt') do |io|
-    str = io.read
-  end
-  excludes = [',','.',';',':','`','\n','\r']
-  words = str.split(/ |(,)|(\.)|(;)|(:)|(`)|(\n)|(\r)/)
-  #辞書作成　
-  #符号化 [word1][word2] > rank
-  #復号 [word1][rank]> word2
-  dic = {}
-  decode_dic = {}
-  CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
-    dic[row[0]] = {} if dic[row[0]] == nil
-    dic[row[0]][row[1]] = row[2].to_i
-    decode_dic[row[0]] = {} if decode_dic[row[0]] == nil
-    decode_dic[row[0]][row[2].to_i] = row[1]
-  end
-
-  ary = []
-  bin = 4
-  (1..words.count-1).each do |i|
-    dic[words[i-1]] = {} if dic[words[i-1]] == nil
-    rank_dic = dic[words[i-1]]
-    if rank_dic[words[i]] == nil
-      rank = rank_dic.count + 1
-      rank_dic[words[i]] = rank
-      decode_dic[words[i-1]] = {} if decode_dic[words[i-1]] == nil
-      decode_dic[words[i-1]][rank] = words[i]
+    if encode_last_dic[last] == nil
+      rank = encode_last_dic.count + 1
+      encode_last_dic[last] = rank
+      decode_last_dic[rank] = last
     end
-    ary.push(rank_dic[words[i]])
-    bin = omega(bin,rank_dic[words[i]])
+    encode_last_dic[last]
   end
-  p bin.bit_length
 
-  ranks = ary
-  #ranks = d_omega(bin)
-  #ranks.shift
 
-  str = words[0]
-  pre = words[0]
-  ranks.each do |rank|
-    pre = decode_dic[pre][rank]
-    str += ' ' if !excludes.include?(pre)
-    str += pre
-  end
-  File.open("decode.txt", "w") do |f|
-    f.puts(str)
+  def finish
   end
 end
 
-connection.finish
+class NgramCompression
+
+  def initialize
+    @excludes = [",",".",";",":","`","\r\n","\n","\r"]
+  end
+
+  def encode(file)
+    str = ''
+    File.open(file,'rb') do |io|
+      str = io.read
+    end
+
+    words = str.split(/ |(,)|(\.)|(;)|(:)|(`)|(\r\n)|(\n)|(\r)/)#TODO query
+    @first = words[0] #TODO delete
+
+    table = NgramTableFromCsv.new
+    encode_dic = {}
+    @decode_dic = {}
+    table.setup(encode_dic,@decode_dic)#TODO csv
+    @ary = []
+    bin = 4
+    (1..words.count-1).each do |i|
+      rank = table.rank([words[i-1],words[i]],encode_dic,@decode_dic)
+      @ary.push(rank)
+      bin = omega(bin,rank)
+    end
+    table.finish
+    p bin.bit_length
+  end
+
+  def to_text(ary , first)
+    #復号
+    #ranks = d_omega(bin)
+    #ranks.shift
+    ranks = @ary
+
+    str = @first
+    pre = @first
+    ranks.each do |rank|
+      pre = @decode_dic[pre][rank]
+      str << ' ' unless @excludes.include?(pre)
+      str << pre
+    end
+
+    File.open('decode.txt', 'wb') do |f|
+      f.write(str)
+    end
+
+    #table.finish
+  end
+end
+
+ngram = NgramCompression.new
+puts Benchmark.measure {
+  ngram.encode 'cantrbry/alice29.txt'
+  ngram.to_text [],''
+  puts Benchmark::CAPTION
+}
+
+#TODO :符号化辞書のサイズを出す、複合を可能にする。
+
+# user     system      total        real
+# 903
+# 0.000000   0.000000   0.000000 (  0.033993)
+#
+# user     system      total        real
+# 903
+# 0.020000   0.010000   0.030000 ( 21.375481)
 # data = Array.new(ary.max,0)
 # ary.each { |x|
 #   data[x] = 0 if data[x] == nil

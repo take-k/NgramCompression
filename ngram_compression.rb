@@ -118,7 +118,7 @@ class NgramCompression
     words = str.split(/ |(,)|(\.)|(;)|(:)|(`)|(\r\n)|(\n)|(\r)/)#TODO query
     @first = words[0] #TODO delete
 
-    table = NgramTableFromCsv.new
+    table = NgramTableFromPg.new
     encode_dic = {}
     @decode_dic = {}
     table.setup(encode_dic,@decode_dic)#TODO csv
@@ -131,6 +131,7 @@ class NgramCompression
     end
     table.finish
     p bin.bit_length
+    #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
   end
 
   def to_text(ary , first)
@@ -158,11 +159,9 @@ end
 ngram = NgramCompression.new
 puts Benchmark.measure {
   ngram.encode 'cantrbry/alice29.txt'
-  ngram.to_text [],''
+  #ngram.to_text [],''
   puts Benchmark::CAPTION
 }
-
-#TODO :符号化辞書のサイズを出す、複合を可能にする。
 
 # user     system      total        real
 # 903

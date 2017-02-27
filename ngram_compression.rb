@@ -130,18 +130,20 @@ class NgramCompression
       bin = omega(bin,rank)
     end
     table.finish
-    p bin.bit_length
     #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
   end
 
-  def to_text(ary , first)
+  def decode(bin , first_word)
     #復号
-    #ranks = d_omega(bin)
-    #ranks.shift
-    ranks = @ary
+    ranks = d_omega(bin)
+    ranks.shift
 
-    str = @first
-    pre = @first
+    #ranks = @ary
+    #first = @first
+    first = first_word
+
+    str = first
+    pre = first
     ranks.each do |rank|
       pre = @decode_dic[pre][rank]
       str << ' ' unless @excludes.include?(pre)
@@ -159,6 +161,5 @@ end
 ngram = NgramCompression.new
 puts Benchmark.measure {
   ngram.encode 'cantrbry/alice29.txt'
-  #ngram.to_text [],''
   puts Benchmark::CAPTION
 }

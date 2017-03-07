@@ -115,10 +115,12 @@ class NgramCompression
       str = io.read
     end
 
-    words = str.split(/ |(,)|(\.)|(;)|(:)|(`)|(\r\n)|(\n)|(\r)/)#TODO query
+    regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
+    words = str.split(regex)
+
     @first = words[0] #TODO delete
 
-    table = NgramTableFromPg.new
+    table = NgramTableFromCsv.new
     encode_dic = {}
     @decode_dic = {}
     table.setup(encode_dic,@decode_dic)#TODO csv
@@ -133,14 +135,14 @@ class NgramCompression
     #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
   end
 
-  def decode(bin , first_word)
+  def decode(bin , first_word ,file = 'decode.txt')
     #復号
-    ranks = d_omega(bin)
-    ranks.shift
+    #ranks = d_omega(bin)
+    #ranks.shift
+    #first = first_word
 
-    #ranks = @ary
-    #first = @first
-    first = first_word
+    ranks = @ary
+    first = @first
 
     str = first
     pre = first
@@ -150,7 +152,7 @@ class NgramCompression
       str << pre
     end
 
-    File.open('decode.txt', 'wb') do |f|
+    File.open(file, 'wb') do |f|
       f.write(str)
     end
 
@@ -161,5 +163,6 @@ end
 ngram = NgramCompression.new
 puts Benchmark.measure {
   ngram.encode 'cantrbry/alice29.txt'
+  ngram.decode 0,0
   puts Benchmark::CAPTION
 }

@@ -51,7 +51,7 @@ class NgramTableFromPg
   end
 
   def rank(keywords,encode_add_dic,decode_add_dic)
-    words = keywords
+    words = keywords.clone
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
     results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
     if results.count == 0
@@ -64,6 +64,7 @@ class NgramTableFromPg
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
+      $add_table_str << keywords.join(' ') << rank.to_s << "\n"
     else
       rank = results[0]['rank'].to_i
     end
@@ -86,7 +87,7 @@ class NgramTableFromPg
   end
 
 end
-
+$add_table_str = ''
 class NgramTableFromCsv
   def setup(encode_dic,decode_dic)
     CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
@@ -106,6 +107,7 @@ class NgramTableFromCsv
       rank = encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
+      $add_table_str << words.join(' ') << ' ' << "\n"
     end
     encode_last_dic[last]
   end
@@ -147,6 +149,7 @@ class NgramCompression
       bin = omega(bin,rank)
     end
     table.finish
+
     #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
   end
 

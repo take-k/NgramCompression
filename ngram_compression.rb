@@ -64,7 +64,7 @@ class NgramTableFromPg
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
-      $add_table_str << keywords.join(' ') << rank.to_s << "\n"
+      $add_table_str << keywords.join(' ') << ' ' << "\n"
     else
       rank = results[0]['rank'].to_i
     end
@@ -99,7 +99,7 @@ class NgramTableFromCsv
   end
 
   def rank(keywords,encode_add_dic,decode_add_dic)
-    words = keywords
+    words = keywords.clone
     last = words.pop
     encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
@@ -107,7 +107,7 @@ class NgramTableFromCsv
       rank = encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
-      $add_table_str << words.join(' ') << ' ' << "\n"
+      $add_table_str << keywords.join(' ') << ' ' << "\n"
     end
     encode_last_dic[last]
   end

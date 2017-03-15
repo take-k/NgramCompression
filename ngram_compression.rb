@@ -164,9 +164,12 @@ class NgramCompression
     str = first
     pre = first
     ranks.each do |rank|
-      pre = table.next_word([pre],rank,@decode_dic)
-      str << ' ' unless @excludes.include?(pre)
-      str << pre
+      word = table.next_word([pre],rank,@decode_dic)
+      if !@excludes.include?(pre) && !@excludes.include?(word) #TODO ハッシュ化
+        str << ' ' unless @excludes.include?(pre)
+      end
+      str << word
+      pre = word
     end
 
     File.open(file, 'wb') do |f|

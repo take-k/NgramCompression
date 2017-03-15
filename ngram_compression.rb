@@ -45,9 +45,82 @@ def d_omega(number)
   ary
 end
 
+$add_table_str = ''
+
+class NgramTable
+
+  def rank_from(keywords)
+  end
+
+  def rank(keywords,encode_add_dic,decode_add_dic)
+    words = keywords.clone
+    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+    if results.count == 0
+      last = words.pop
+      encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      return encode_last_dic[last] if encode_last_dic[last] != nil
+      decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
+      rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
+      encode_last_dic[last] = rank
+      decode_last_dic[rank] = last
+      $add_table_str << keywords.join(' ') << ' ' << "\n"
+    else
+      rank = results[0]['rank'].to_i
+    end
+    rank
+    #
+    # words = keywords.clone
+    # last = words.pop
+    # encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    # decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    # if encode_last_dic[last] == nil
+    #   rank = encode_last_dic.count + 1
+    #   encode_last_dic[last] = rank
+    #   decode_last_dic[rank] = last
+    #   $add_table_str << keywords.join(' ') << ' ' << "\n"
+    # end
+    # encode_last_dic[last]
+  end
+
+  def next_word(pre_words,rank,decode_dic)
+    words = pre_words
+    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT word2 FROM coca2gram WHERE #{condition} AND rank = #{rank}",words)
+    if results.count == 0
+      pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
+    else
+      results[0]['word2']
+    end
+  end
+
+end
+
+
 class NgramTableFromPg
   def setup(encode_dic=nil,decode_dic=nil)
     @connection = PG::connect(dbname: "ngram")
+  end
+
+  def insert_str(str)
+    str = $add_table_str
+    counts = Array.new(256){|i| [i,0]}
+    str.each_byte do |b|
+      counts[b][1] += 1
+    end
+    counts.sort_by! { |a| -a[1]}
+
+    counts.each_with_index do |a,i|
+      @connection.exec("INSERT INTO letter1gram(letter, rank) VALUES ($1,$2)",[a[0].chr("UTF-8"),i+2])
+    end
+  end
+
+  def rank_from(keywords)
+    condition = (1..keywords.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+    results.count > 0 ? results[0]['rank'].to_i : nil
   end
 
   def rank(keywords,encode_add_dic,decode_add_dic)
@@ -87,7 +160,7 @@ class NgramTableFromPg
   end
 
 end
-$add_table_str = ''
+
 class NgramTableFromCsv
   def setup(encode_dic,decode_dic)
     CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
@@ -148,8 +221,10 @@ class NgramCompression
       @ary.push(rank)
       bin = omega(bin,rank)
     end
-    table.finish
 
+    #table.insert_str('')
+
+    table.finish
     #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
   end
 

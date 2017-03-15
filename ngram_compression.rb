@@ -166,7 +166,7 @@ class NgramCompression
     ranks.each do |rank|
       word = table.next_word([pre],rank,@decode_dic)
       if !@excludes.include?(pre) && !@excludes.include?(word) #TODO ハッシュ化
-        str << ' ' unless @excludes.include?(pre)
+        str << ' '
       end
       str << word
       pre = word

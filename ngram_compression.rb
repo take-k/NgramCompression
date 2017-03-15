@@ -46,7 +46,7 @@ def d_omega(number)
 end
 
 class NgramTableFromPg
-  def setup(encode_dic,decode_dic)
+  def setup(encode_dic=nil,decode_dic=nil)
     @connection = PG::connect(dbname: "ngram")
   end
 
@@ -55,11 +55,12 @@ class NgramTableFromPg
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
     results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
     if results.count == 0
-      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
       last = words.pop
       encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       return encode_last_dic[last] if encode_last_dic[last] != nil
       decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
@@ -67,6 +68,17 @@ class NgramTableFromPg
       rank = results[0]['rank'].to_i
     end
     rank
+  end
+
+  def next_word(pre_words,rank,decode_dic)
+    words = pre_words
+    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT word2 FROM coca2gram WHERE #{condition} AND rank = #{rank}",words)
+    if results.count == 0
+      pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
+    else
+      results[0]['word2']
+    end
   end
 
   def finish
@@ -98,6 +110,9 @@ class NgramTableFromCsv
     encode_last_dic[last]
   end
 
+  def next_word(pre_words,rank,decode_dic)
+    pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
+  end
 
   def finish
   end
@@ -120,7 +135,7 @@ class NgramCompression
 
     @first = words[0] #TODO delete
 
-    table = NgramTableFromCsv.new
+    table = NgramTableFromPg.new
     encode_dic = {}
     @decode_dic = {}
     table.setup(encode_dic,@decode_dic)#TODO csv
@@ -136,6 +151,8 @@ class NgramCompression
   end
 
   def decode(bin , first_word ,file = 'decode.txt')
+    table = NgramTableFromPg.new
+    table.setup
     #復号
     #ranks = d_omega(bin)
     #ranks.shift
@@ -147,7 +164,7 @@ class NgramCompression
     str = first
     pre = first
     ranks.each do |rank|
-      pre = @decode_dic[pre][rank]
+      pre = table.next_word([pre],rank,@decode_dic)
       str << ' ' unless @excludes.include?(pre)
       str << pre
     end
@@ -156,7 +173,7 @@ class NgramCompression
       f.write(str)
     end
 
-    #table.finish
+    table.finish
   end
 end
 

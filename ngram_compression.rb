@@ -137,7 +137,7 @@ class NgramTableFromPg
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
-      $add_table_str << keywords.join(' ') << ' ' << "\n"
+      $add_table_str << keywords.join(' ') << ' ' << rank.to_s << "\n"
     else
       rank = results[0]['rank'].to_i
     end
@@ -219,8 +219,18 @@ class NgramCompression
     (1..words.count-1).each do |i|
       rank = table.rank([words[i-1],words[i]],encode_dic,@decode_dic)
       @ary.push(rank)
-      bin = omega(bin,rank)
+      bin = delta(bin,rank)
     end
+
+    add_table_str = $add_table_str
+    ltable = letter_table(add_table_str)
+    lbin = 4
+    add_table_str.each_char do |c|
+      lbin = delta(lbin,ltable[c])
+    end
+    p bin.bit_length / 8
+    p lbin.bit_length / 8
+    p (bin.bit_length + lbin.bit_length) / 8
 
     #table.insert_str('')
 
@@ -256,6 +266,20 @@ class NgramCompression
 
     table.finish
   end
+end
+
+def letter_table(str)
+  counts = {}
+  str.each_char do |c|
+    counts[c] = 0 if counts[c] == nil
+    counts[c]+=1
+  end
+  array = counts.sort_by { |k,v| -v}
+  table = {}
+  array.each_with_index { |v, i|
+    table[v[0]] = i + 1
+  }
+  table
 end
 
 ngram = NgramCompression.new

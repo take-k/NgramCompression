@@ -215,6 +215,26 @@ class NgramCompression
     @decode_dic = {}
     table.setup(encode_dic,@decode_dic)#TODO csv
     @ary = []
+
+
+    words_hash = {[]=>0}
+    results = []
+    i = 0
+    counter = 0
+    ary = []
+    while i < words.count
+      ary << words[i]
+      if words_hash[ary] == nil
+        counter += 1
+        words_hash[ary] = counter # {[a]=>1,[a,b]=>2}
+
+        results << [words[i],words_hash[ary[0,ary.count-1]]]
+        ary = []
+      end
+      i+=1
+    end
+
+
     bin = 4
     (1..words.count-1).each do |i|
       rank = table.rank([words[i-1],words[i]],encode_dic,@decode_dic)

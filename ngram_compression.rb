@@ -215,8 +215,25 @@ class NgramCompression
     @decode_dic = {}
     ngram.setup(encode_dic,@decode_dic)#TODO csv
     @ary = []
-    bin = lz78_compress(words,ngram,encode_dic)
+    bin = naive_compress(words,ngram,encode_dic)
 
+
+    ngram.finish
+  end
+
+  def decode(bin , first_word ,file = 'decode.txt')
+    ngram = NgramTableFromPg.new
+    ngram.setup
+    #復号
+    #ranks = d_omega(bin)
+    #ranks.shift
+    #first = first_word
+
+    str = naive_decompress(ngram,@ary,@first)
+
+    File.open(file, 'wb') do |f|
+      f.write(str)
+    end
 
     ngram.finish
   end
@@ -269,8 +286,19 @@ class NgramCompression
     bin
   end
 
-  def naive_decompress
+  def naive_decompress(ngram,ranks,first)
 
+    str = first
+    pre = first
+    ranks.each do |rank|
+      word = ngram.next_word([pre],rank,@decode_dic)
+      if !@excludes.include?(pre) && !@excludes.include?(word) #TODO ハッシュ化
+        str << ' '
+      end
+      str << word
+      pre = word
+    end
+    str
   end
 
   def talbe_letter_naive_compress
@@ -283,35 +311,6 @@ class NgramCompression
     p '2-gram-table naive'
     p "content:#{bin.bit_length / 8}"
     bin
-  end
-
-  def decode(bin , first_word ,file = 'decode.txt')
-    table = NgramTableFromPg.new
-    table.setup
-    #復号
-    #ranks = d_omega(bin)
-    #ranks.shift
-    #first = first_word
-
-    ranks = @ary
-    first = @first
-
-    str = first
-    pre = first
-    ranks.each do |rank|
-      word = table.next_word([pre],rank,@decode_dic)
-      if !@excludes.include?(pre) && !@excludes.include?(word) #TODO ハッシュ化
-        str << ' '
-      end
-      str << word
-      pre = word
-    end
-
-    File.open(file, 'wb') do |f|
-      f.write(str)
-    end
-
-    table.finish
   end
 end
 

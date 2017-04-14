@@ -270,8 +270,19 @@ class NgramCompression
     p "content:#{bin.bit_length / 8}"
   end
 
-  def lz78_decompress
+  def lz78_decompress(ngram,pairs,first)
+    words_hash = {0=>[]}
+    counter = 0
 
+    str = first
+    results = []
+    pairs.each do |word,num|
+      words = words_hash[num] + [word]
+      results += words
+      counter += 1
+      words_hash[counter] = words
+    end
+    join_words(results)
   end
 
   def naive_compress(words,ngram,encode_dic)
@@ -287,13 +298,20 @@ class NgramCompression
   end
 
   def naive_decompress(ngram,ranks,first)
-
-    str = first
     pre = first
-    ranks.each do |rank|
+    words = ranks.map do |rank|
       word = ngram.next_word([pre],rank,@decode_dic)
+      pre = word
+    end
+    join_words([first] + words)
+  end
+
+  def join_words(words)
+    str = ''
+    pre = words[0]
+    words.each_with_index do |word,i|
       if !@excludes.include?(pre) && !@excludes.include?(word) #TODO ハッシュ化
-        str << ' '
+        str << ' ' if i != 0
       end
       str << word
       pre = word
@@ -330,7 +348,7 @@ end
 
 ngram = NgramCompression.new
 puts Benchmark.measure {
-  ngram.encode 'sample'
+  ngram.encode 'cantrbry/alice29.txt' #cantrbry/alice29.txt
   ngram.decode 0,0
   puts Benchmark::CAPTION
 }

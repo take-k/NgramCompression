@@ -210,52 +210,79 @@ class NgramCompression
 
     @first = words[0] #TODO delete
 
-    table = NgramTableFromPg.new
+    ngram = NgramTableFromPg.new
     encode_dic = {}
     @decode_dic = {}
-    table.setup(encode_dic,@decode_dic)#TODO csv
+    ngram.setup(encode_dic,@decode_dic)#TODO csv
     @ary = []
+    bin = lz78_compress(words,ngram,encode_dic)
 
 
+    ngram.finish
+  end
+
+  def lz78_compress(words,ngram,encode_dic)
     words_hash = {[]=>0}
     results = []
-    i = 0
     counter = 0
     ary = []
-    while i < words.count
-      ary << words[i]
+
+    words.each_with_index do |word,i|
+      ary << word
       if words_hash[ary] == nil
         counter += 1
         words_hash[ary] = counter # {[a]=>1,[a,b]=>2}
 
-        results << [words[i],words_hash[ary[0,ary.count-1]]]
+        results << [word,words_hash[ary[0,ary.count-1]]]
+        @ary << [word,words_hash[ary[0,ary.count-1]]]
         ary = []
+      elsif i == words.count-1 #最後の文字が出力されていない場合
+        results << ['',words_hash[ary]]
+        @ary << ['',words_hash[ary]]
       end
-      i+=1
     end
-
+    p @ary
 
     bin = 4
+    (1..results.count-1).each do |i|
+      rank = ngram.rank([results[i-1][0],results[i][0]],encode_dic,@decode_dic)
+      bin = delta(bin,rank)
+      bin = delta( bin ,results[i][1] + 1) #0は符号化できない
+    end
+    p '2-gram lz'
+    p "content:#{bin.bit_length / 8}"
+  end
+
+  def lz78_decompress
+
+  end
+
+  def naive_compress(words,ngram,encode_dic)
+    bin = 4
     (1..words.count-1).each do |i|
-      rank = table.rank([words[i-1],words[i]],encode_dic,@decode_dic)
+      rank = ngram.rank([words[i-1],words[i]],encode_dic,@decode_dic)
       @ary.push(rank)
       bin = delta(bin,rank)
     end
+    p '2-gram naive'
+    p "content:#{bin.bit_length / 8}"
+    bin
+  end
 
+  def naive_decompress
+
+  end
+
+  def talbe_letter_naive_compress
     add_table_str = $add_table_str
-    ltable = letter_table(add_table_str)
-    lbin = 4
+    table = letter_table(add_table_str)
+    bin = 4
     add_table_str.each_char do |c|
-      lbin = delta(lbin,ltable[c])
+      bin = delta(bin,table[c])
     end
-    p bin.bit_length / 8
-    p lbin.bit_length / 8
-    p (bin.bit_length + lbin.bit_length) / 8
-
-    #table.insert_str('')
-
-    table.finish
-    #@decode_dic.inject(0){|sum , h| sum + h[0].size + h[1].inject(0){|s,i| s + i.size}}
+    p '2-gram-table naive'
+    p "content:#{bin.bit_length / 8}"
+    bin
   end
 
   def decode(bin , first_word ,file = 'decode.txt')
@@ -304,7 +331,7 @@ end
 
 ngram = NgramCompression.new
 puts Benchmark.measure {
-  ngram.encode 'cantrbry/alice29.txt'
+  ngram.encode 'sample'
   ngram.decode 0,0
   puts Benchmark::CAPTION
 }

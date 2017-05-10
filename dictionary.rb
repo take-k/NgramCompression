@@ -1,5 +1,5 @@
 $stdin = open("vocab", "r")
-$stdout = open("out", "w")
+$stdout = open("dic", "w")
 
 freq_threadshold = 10000#閾値
 

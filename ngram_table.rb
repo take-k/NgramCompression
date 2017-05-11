@@ -64,10 +64,17 @@ class NgramTableFromPg
 
 end
 
-class NgramTableFromCsv
+class NgramTableFromFile
+  attr_reader :add_table_str
+
   def setup(file = 'w2-s.tsv',encode_dic = nil,decode_dic = nil)
     @add_table_str = ''
-    CSV.foreach(file, :col_sep => "\t") do |row|
+    @fail = 0
+    @total = 0
+    @count = 0
+    f = open(file,'rb')
+    while (input = f.gets) do
+      row = input.split("\t")
       words = row[0,row.size-1] #rank以外を取り出す
       rank = row[-1].to_i
       last = words.pop
@@ -75,6 +82,7 @@ class NgramTableFromCsv
       encode_last_dic[last] = rank
       decode_last_dic = words.inject(decode_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       decode_last_dic[rank] = last
+      @count += 1
     end
   end
 
@@ -84,11 +92,21 @@ class NgramTableFromCsv
     encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     if encode_last_dic[last] == nil
-      rank = encode_last_dic.count + 1
+      if keywords.size == 1
+        rank = @count + 1 #1-gramのみ多いので高速化
+        @count += 1
+      else
+        rank = encode_last_dic.count + 1
+      end
+
+      @fail+=1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
       @add_table_str << keywords.join(' ') << ' ' << "\n"
+      print "#{keywords[0]} "
+    else
     end
+    @total+=1
     encode_last_dic[last]
   end
 
@@ -97,5 +115,9 @@ class NgramTableFromCsv
   end
 
   def finish
+  end
+
+  def print_rate
+    puts "fail #{@fail}/#{@total}"
   end
 end

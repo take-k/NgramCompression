@@ -8,10 +8,11 @@ include Benchmark
 class NgramCompression
 
   def initialize
-    @excludes = [",",".",";",":","`","\r\n","\n","\r"]
+    @excludes = [",",".",";",":","?","!","`","-","_","[","]","'","(",")","\"","\r\n","\n","\r"]
   end
 
   def compress(file)
+    puts "#{file}=============="
     str = ''
     File.open(file,'rb') do |io|
       str = io.read
@@ -20,19 +21,21 @@ class NgramCompression
     #parse
     regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
     words = str.split(regex)
-
     @first = words[0] #TODO delete
 
     #ngramセットアップ
-    ngram = NgramTableFromCsv.new
+    ngram = NgramTableFromFile.new
     encode_dic = {}
     @decode_dic = {}
     @n = 1
-    ngram.setup('dic',encode_dic,@decode_dic)
+    ngramfile = 'dic10000'
+    puts "#{ngramfile}"
+    ngram.setup(ngramfile,encode_dic,@decode_dic)
     @ary = []
 
     #圧縮
     bin = naive_compress(words,ngram,encode_dic)
+    ngram.print_rate
     ngram.finish
   end
 
@@ -44,7 +47,7 @@ class NgramCompression
     #ranks.shift
     #first = first_word
 
-    str = lz78_decompress(ngram,@ary,@first)
+    str = lz78_decompress(ngram,@ary ,@first)
 
     File.open(file, 'wb') do |f|
       f.write(str)

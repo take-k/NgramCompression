@@ -1,104 +1,7 @@
-require 'csv'
-require 'pg'
 require 'benchmark'
 require './encode.rb'
+require './ngram_table.rb'
 include Benchmark
-
-$add_table_str = ''
-
-class NgramTableFromPg
-  def setup(encode_dic=nil,decode_dic=nil)
-    @connection = PG::connect(dbname: "ngram")
-  end
-
-  def insert_str(str)
-    str = $add_table_str
-    counts = Array.new(256){|i| [i,0]}
-    str.each_byte do |b|
-      counts[b][1] += 1
-    end
-    counts.sort_by! { |a| -a[1]}
-
-    counts.each_with_index do |a,i|
-      @connection.exec("INSERT INTO letter1gram(letter, rank) VALUES ($1,$2)",[a[0].chr("UTF-8"),i+2])
-    end
-  end
-
-  def rank_from(keywords)
-    condition = (1..keywords.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
-    results.count > 0 ? results[0]['rank'].to_i : nil
-  end
-
-  def rank(keywords,encode_add_dic,decode_add_dic)
-    words = keywords.clone
-    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
-    if results.count == 0
-      last = words.pop
-      encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-      return encode_last_dic[last] if encode_last_dic[last] != nil
-      decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-      condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
-      rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
-      encode_last_dic[last] = rank
-      decode_last_dic[rank] = last
-      $add_table_str << keywords.join(' ') << ' ' << rank.to_s << "\n"
-    else
-      rank = results[0]['rank'].to_i
-    end
-    rank
-  end
-
-  def next_word(pre_words,rank,decode_dic)
-    words = pre_words
-    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT word2 FROM coca2gram WHERE #{condition} AND rank = #{rank}",words)
-    if results.count == 0
-      pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
-    else
-      results[0]['word2']
-    end
-  end
-
-  def finish
-    @connection.finish
-  end
-
-end
-
-class NgramTableFromCsv
-  def setup(encode_dic,decode_dic)
-    CSV.foreach('w2-s.tsv', :col_sep => "\t") do |row|
-      encode_dic[row[0]] = {} if encode_dic[row[0]] == nil
-      encode_dic[row[0]][row[1]] = row[2].to_i
-      decode_dic[row[0]] = {} if decode_dic[row[0]] == nil
-      decode_dic[row[0]][row[2].to_i] = row[1]
-    end
-  end
-
-  def rank(keywords,encode_add_dic,decode_add_dic)
-    words = keywords.clone
-    last = words.pop
-    encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    if encode_last_dic[last] == nil
-      rank = encode_last_dic.count + 1
-      encode_last_dic[last] = rank
-      decode_last_dic[rank] = last
-      $add_table_str << keywords.join(' ') << ' ' << "\n"
-    end
-    encode_last_dic[last]
-  end
-
-  def next_word(pre_words,rank,decode_dic)
-    pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
-  end
-
-  def finish
-  end
-end
 
 #==================Ngram処理====================
 
@@ -124,11 +27,12 @@ class NgramCompression
     ngram = NgramTableFromCsv.new
     encode_dic = {}
     @decode_dic = {}
-    ngram.setup(encode_dic,@decode_dic)
+    @n = 1
+    ngram.setup('dic',encode_dic,@decode_dic)
     @ary = []
 
     #圧縮
-    bin = lz78_compress(words,ngram,encode_dic)
+    bin = naive_compress(words,ngram,encode_dic)
     ngram.finish
   end
 
@@ -140,13 +44,32 @@ class NgramCompression
     #ranks.shift
     #first = first_word
 
-    str = naive_decompress(ngram,@ary,@first)
+    str = lz78_decompress(ngram,@ary,@first)
 
     File.open(file, 'wb') do |f|
       f.write(str)
     end
 
     ngram.finish
+  end
+
+
+
+  ###========================================================
+
+  def convert_to_ranks(words,ngram,encode_dic)#最初の文字群とrankの配列
+    n = @n
+    first_words = []
+    ranks = []
+    words.each_with_index do |word,i|
+      if i < (n-1)
+        first_words << word
+      else
+        words[i-(n-1)..i]
+        ranks << ngram.rank(words[i-(n-1)..i],encode_dic,@decode_dic)
+      end
+    end
+    [first_words,ranks]
   end
 
   def lz78_compress(words,ngram,encode_dic)
@@ -198,13 +121,13 @@ class NgramCompression
 
   def naive_compress(words,ngram,encode_dic)
     bin = 4
-    (1..words.count-1).each do |i|
-      rank = ngram.rank([words[i-1],words[i]],encode_dic,@decode_dic)
+    first_words,ranks = convert_to_ranks(words,ngram,encode_dic)
+    ranks.each do |rank|
       #@ary.push(rank)
       bin = omega(bin,rank)
     end
-    p '2-gram naive'
-    p "content:#{bin.bit_length / 8}"
+    puts "#{@n}gram naive"
+    puts "content:#{bin.bit_length / 8}"
     bin
   end
 
@@ -217,6 +140,7 @@ class NgramCompression
     join_words([first] + words)
   end
 
+  #===============================================================
   def join_words(words)
     str = ''
     pre = words[0]
@@ -230,8 +154,7 @@ class NgramCompression
     str
   end
 
-  def talbe_letter_naive_compress
-    add_table_str = $add_table_str
+  def talbe_letter_naive_compress(add_table_str)
     table = letter_table(add_table_str)
     bin = 4
     add_table_str.each_char do |c|
@@ -259,7 +182,7 @@ end
 
 ngram = NgramCompression.new
 puts Benchmark.measure {
-  ngram.compress 'calgary/book1' #cantrbry/alice29.txt
-  ngram.decode 0,0
+  ngram.compress 'cantrbry/alice29.txt' #cantrbry/alice29.txt
+  #ngram.decode 0,0
   puts Benchmark::CAPTION
 }

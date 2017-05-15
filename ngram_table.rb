@@ -1,9 +1,27 @@
 require 'csv'
 require 'pg'
 
-class NgramTableFromPg
-  def setup(encode_dic=nil,decode_dic=nil)
+class NgramTable
+  attr_reader :add_table_str
+
+  def reset_count
+    @fail = 0
+    @total = 0
     @add_table_str = ''
+  end
+
+  def finish
+  end
+
+  def print_rate
+    puts "fail: #{@fail}/#{@total}"
+  end
+end
+
+class NgramTableFromPg < NgramTable
+  def setup(db_name='coca2gram',encode_dic=nil,decode_dic=nil)
+    @db_name = db_name
+    reset_count
     @connection = PG::connect(dbname: "ngram")
   end
 
@@ -22,35 +40,37 @@ class NgramTableFromPg
 
   def rank_from(keywords)
     condition = (1..keywords.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+    results = @connection.exec("SELECT rank FROM #{@db_name} WHERE #{condition}",words)
     results.count > 0 ? results[0]['rank'].to_i : nil
   end
 
   def rank(keywords,encode_add_dic,decode_add_dic)
     words = keywords.clone
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT rank FROM coca2gram WHERE #{condition}",words)
+    results = @connection.exec("SELECT rank FROM #{@db_name} WHERE #{condition}",words)
     if results.count == 0
       last = words.pop
       encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       return encode_last_dic[last] if encode_last_dic[last] != nil
       decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM coca2gram WHERE #{condition}",words)
+      word1_count_results = @connection.exec("SELECT COUNT(rank) FROM #{@db_name} WHERE #{condition}",words)
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
       @add_table_str << keywords.join(' ') << ' ' << rank.to_s << "\n"
+      @fail += 1
     else
       rank = results[0]['rank'].to_i
     end
+    @total+= 1
     rank
   end
 
   def next_word(pre_words,rank,decode_dic)
     words = pre_words
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT word2 FROM coca2gram WHERE #{condition} AND rank = #{rank}",words)
+    results = @connection.exec("SELECT word2 FROM #{@db_name} WHERE #{condition} AND rank = #{rank}",words)
     if results.count == 0
       pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
     else
@@ -61,16 +81,11 @@ class NgramTableFromPg
   def finish
     @connection.finish
   end
-
 end
 
-class NgramTableFromFile
-  attr_reader :add_table_str
-
+class NgramTableFromFile < NgramTable
   def setup(file = 'w2-s.tsv',encode_dic = nil,decode_dic = nil)
-    @add_table_str = ''
-    @fail = 0
-    @total = 0
+    reset_count
     @count = 0
     f = open(file,'rb')
     while (input = f.gets) do
@@ -111,12 +126,5 @@ class NgramTableFromFile
 
   def next_word(pre_words,rank,decode_dic)
     pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
-  end
-
-  def finish
-  end
-
-  def print_rate
-    puts "fail: #{@fail}/#{@total}"
   end
 end

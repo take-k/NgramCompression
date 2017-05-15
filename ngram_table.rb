@@ -102,9 +102,8 @@ class NgramTableFromFile
       @fail+=1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
-      @add_table_str << keywords.join(' ') << ' ' << "\n"
-      print "#{keywords[0]} "
-    else
+      #@add_table_str << keywords.join(' ') << ' ' << "\n"
+      @add_table_str << keywords.join(' ') << ' '
     end
     @total+=1
     encode_last_dic[last]
@@ -118,6 +117,6 @@ class NgramTableFromFile
   end
 
   def print_rate
-    puts "fail #{@fail}/#{@total}"
+    puts "fail: #{@fail}/#{@total}"
   end
 end

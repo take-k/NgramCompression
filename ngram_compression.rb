@@ -12,7 +12,7 @@ class NgramCompression
   end
 
   def compress(file)
-    puts "#{file}=============="
+    puts "#{file}========================="
     str = ''
     File.open(file,'rb') do |io|
       str = io.read
@@ -28,14 +28,17 @@ class NgramCompression
     encode_dic = {}
     @decode_dic = {}
     @n = 1
-    ngramfile = 'dic10000'
-    puts "#{ngramfile}"
+    ngramfile = 'n-grams/dic10000'
+    puts "ngramfile: #{ngramfile}"
     ngram.setup(ngramfile,encode_dic,@decode_dic)
     @ary = []
 
     #圧縮
     bin = naive_compress(words,ngram,encode_dic)
+    puts "before:#{(str.length).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
+    puts "after:#{(bin.bit_length / 8).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
     ngram.print_rate
+    p ngram.add_table_str
     ngram.finish
   end
 
@@ -130,7 +133,6 @@ class NgramCompression
       bin = omega(bin,rank)
     end
     puts "#{@n}gram naive"
-    puts "content:#{bin.bit_length / 8}"
     bin
   end
 

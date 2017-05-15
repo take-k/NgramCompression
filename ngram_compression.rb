@@ -4,9 +4,9 @@ require './ngram_table.rb'
 require './tools.rb'
 include Benchmark
 
-$ngramfile = 'n-grams/dic10000'
 $targetfile = 'cantrbry/alice29.txt'
-
+$n = 2
+$ngramfile = 'n-grams/w2-s.tsv'
 #==================Ngram処理====================
 
 class NgramCompression
@@ -31,7 +31,7 @@ class NgramCompression
     ngram = NgramTableFromFile.new
     encode_dic = {}
     @decode_dic = {}
-    @n = 1
+    @n = $n
     ngramfile = $ngramfile
     puts "ngramfile: #{ngramfile}"
     ngram.setup(ngramfile,encode_dic,@decode_dic)

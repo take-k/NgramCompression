@@ -38,7 +38,7 @@ class NgramCompression
     puts "before:#{(str.length).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
     puts "after:#{(bin.bit_length / 8).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
     ngram.print_rate
-    p ngram.add_table_str
+    ngram.print_add_table
     ngram.finish
   end
 
@@ -169,20 +169,6 @@ class NgramCompression
     p "content:#{bin.bit_length / 8}"
     bin
   end
-end
-
-def letter_table(str)
-  counts = {}
-  str.each_char do |c|
-    counts[c] = 0 if counts[c] == nil
-    counts[c]+=1
-  end
-  array = counts.sort_by { |k,v| -v}
-  table = {}
-  array.each_with_index { |v, i|
-    table[v[0]] = i + 1
-  }
-  table
 end
 
 ngram = NgramCompression.new

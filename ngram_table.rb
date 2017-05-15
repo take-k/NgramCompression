@@ -3,7 +3,6 @@ require 'pg'
 
 class NgramTable
   attr_reader :add_table_str
-
   def reset_count
     @fail = 0
     @total = 0
@@ -11,6 +10,10 @@ class NgramTable
   end
 
   def finish
+  end
+
+  def print_add_table
+    puts "fail_words = #{@add_table_str}"
   end
 
   def print_rate
@@ -127,4 +130,19 @@ class NgramTableFromFile < NgramTable
   def next_word(pre_words,rank,decode_dic)
     pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
   end
+end
+
+
+def letter_table(str)
+  counts = {}
+  str.each_char do |c|
+    counts[c] = 0 if counts[c] == nil
+    counts[c]+=1
+  end
+  array = counts.sort_by { |k,v| -v}
+  table = {}
+  array.each_with_index { |v, i|
+    table[v[0]] = i + 1
+  }
+  table
 end

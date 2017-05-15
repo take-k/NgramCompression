@@ -1,7 +1,11 @@
 require 'benchmark'
 require './encode.rb'
 require './ngram_table.rb'
+require './tools.rb'
 include Benchmark
+
+$ngramfile = 'n-grams/dic10000'
+$targetfile = 'cantrbry/alice29.txt'
 
 #==================Ngram処理====================
 
@@ -12,7 +16,7 @@ class NgramCompression
   end
 
   def compress(file)
-    puts "#{file}========================="
+    puts "targetfile: #{file} ========================="
     str = ''
     File.open(file,'rb') do |io|
       str = io.read
@@ -28,15 +32,15 @@ class NgramCompression
     encode_dic = {}
     @decode_dic = {}
     @n = 1
-    ngramfile = 'n-grams/dic10000'
+    ngramfile = $ngramfile
     puts "ngramfile: #{ngramfile}"
     ngram.setup(ngramfile,encode_dic,@decode_dic)
     @ary = []
 
     #圧縮
     bin = naive_compress(words,ngram,encode_dic)
-    puts "before:#{(str.length).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
-    puts "after:#{(bin.bit_length / 8).to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')}byte"
+    puts "before:#{(str.length).to_s_comma} byte"
+    puts "after:#{(bin.bit_length / 8).to_s_comma} byte"
     ngram.print_rate
     ngram.print_add_table
     ngram.finish
@@ -58,8 +62,6 @@ class NgramCompression
 
     ngram.finish
   end
-
-
 
   ###========================================================
 
@@ -173,7 +175,7 @@ end
 
 ngram = NgramCompression.new
 puts Benchmark.measure {
-  ngram.compress 'cantrbry/alice29.txt' #cantrbry/alice29.txt
+  ngram.compress $targetfile #cantrbry/alice29.txt
   #ngram.decode 0,0
   puts Benchmark::CAPTION
 }

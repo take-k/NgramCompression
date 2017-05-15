@@ -13,7 +13,8 @@ class NgramTable
   end
 
   def print_add_table
-    puts "fail_words = #{@add_table_str}"
+    print "fail_words = "
+    p @add_table_str
   end
 
   def print_rate
@@ -51,6 +52,7 @@ class NgramTableFromPg < NgramTable
     words = keywords.clone
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
     results = @connection.exec("SELECT rank FROM #{@db_name} WHERE #{condition}",words)
+    @total+= 1
     if results.count == 0
       last = words.pop
       encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
@@ -66,7 +68,6 @@ class NgramTableFromPg < NgramTable
     else
       rank = results[0]['rank'].to_i
     end
-    @total+= 1
     rank
   end
 

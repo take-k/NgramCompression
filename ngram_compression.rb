@@ -5,8 +5,10 @@ require './tools.rb'
 include Benchmark
 
 $targetfile = 'cantrbry/alice29.txt'
+$is_db = true
 $n = 2
 $ngramfile = 'n-grams/w2-s.tsv'
+$dbname = 'coca2gram'
 #==================Ngram処理====================
 
 class NgramCompression
@@ -28,13 +30,20 @@ class NgramCompression
     @first = words[0] #TODO delete
 
     #ngramセットアップ
-    ngram = NgramTableFromFile.new
+    @n = $n
     encode_dic = {}
     @decode_dic = {}
-    @n = $n
-    ngramfile = $ngramfile
-    puts "ngramfile: #{ngramfile}"
-    ngram.setup(ngramfile,encode_dic,@decode_dic)
+    if $is_db
+      ngram = NgramTableFromPg.new
+      puts "tablename: #{$dbname}"
+      ngram.setup
+    else
+      ngram = NgramTableFromFile.new
+      ngramfile = $ngramfile
+      puts "ngramfile: #{ngramfile}"
+      ngram.setup(ngramfile,encode_dic,@decode_dic)
+    end
+
     @ary = []
 
     #圧縮

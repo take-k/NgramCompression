@@ -5,7 +5,7 @@ require './tools.rb'
 include Benchmark
 
 $targetfile = 'cantrbry/alice29.txt'
-$is_db = true
+$is_db = false
 $n = 2
 $ngramfile = 'n-grams/w2-s.tsv'
 $dbname = 'coca2gram'
@@ -47,7 +47,7 @@ class NgramCompression
     @ary = []
 
     #圧縮
-    bin = naive_compress(words,ngram,encode_dic)
+    bin = lz78_compress(words,ngram,encode_dic)
     puts "before:#{(str.length).to_s_comma} byte"
     puts "after:#{(bin.bit_length / 8).to_s_comma} byte"
     ngram.print_rate
@@ -109,16 +109,52 @@ class NgramCompression
         @ary << ['',words_hash[ary]]
       end
     end
-    p @ary
+    bin = lz78convert_mix(results,ngram,encode_dic)
+    p '2-gram lz'
+    p "content:#{bin.bit_length / 8}"
+    bin
+  end
 
+  def lz78convert_2gram(lz78dict,ngram,encode_dic)
     bin = 4
     (1..results.count-1).each do |i|
-      rank = ngram.rank([results[i-1][0],results[i][0]],encode_dic,@decode_dic)
+      rank = ngram.rank([results[i-(n-1)..i][0]],encode_dic,@decode_dic)
       bin = omega(bin,rank)
       bin = omega( bin ,results[i][1] + 1) #0は符号化できない
     end
-    p '2-gram lz'
-    p "content:#{bin.bit_length / 8}"
+    bin
+  end
+
+  def lz78convert_mix(lz78dict,ngram,encode_dic)
+    dict = NgramTableFromFile.new
+    edic = {}
+    ddic = {}
+    dict.setup('n-grams/dic1000',edic,ddic)
+    bin = 4
+    (1..lz78dict.count-1).each do |i|
+      if rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]],encode_dic)
+        bin << 1
+        bin = omega(bin,rank)
+      else
+        if rank = dict.check_rank([lz78dict[i][0]],edic)
+          bin << 2
+          bin += 2
+          bin = omega(bin,rank)
+        else
+          bin << 2
+          bin += 3
+          lz78dict[i][0].unpack("C*").each do |char|
+            bin << 8
+            bin += char
+          end
+        end
+      end
+      bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
+    end
+    dict.finish
+    dict.print_rate
+    dict.print_add_table
+    bin
   end
 
   def lz78_decompress(ngram,pairs,first)
@@ -170,7 +206,7 @@ class NgramCompression
     str
   end
 
-  def talbe_letter_naive_compress(add_table_str)
+  def table_letter_naive_compress(add_table_str)
     table = letter_table(add_table_str)
     bin = 4
     add_table_str.each_char do |c|

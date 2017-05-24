@@ -88,7 +88,7 @@ class NgramTableFromPg < NgramTable
 end
 
 class NgramTableFromFile < NgramTable
-  def setup(file = 'w2-s.tsv',encode_dic = nil,decode_dic = nil)
+  def setup(file = 'n-grams/dic1000',encode_dic = nil,decode_dic = nil)
     reset_count
     @count = 0
     f = open(file,'rb')
@@ -105,6 +105,15 @@ class NgramTableFromFile < NgramTable
     end
   end
 
+  def check_rank(keywords,dic)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_last_dic = words.inject(dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    @total+= 1
+    @fail += 1 if encode_last_dic[last] == nil
+    encode_last_dic[last]
+  end
+
   def rank(keywords,encode_add_dic,decode_add_dic)
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
@@ -112,7 +121,7 @@ class NgramTableFromFile < NgramTable
     decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     if encode_last_dic[last] == nil
       if keywords.size == 1
-        rank = @count + 1 #1-gramのみ多いので高速化
+        rank = @count + 1 #1-gramのみ計算がかかるので高速化
         @count += 1
       else
         rank = encode_last_dic.count + 1

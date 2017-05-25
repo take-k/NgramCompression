@@ -9,6 +9,7 @@ $is_db = false
 $n = 2
 $ngramfile = 'n-grams/w2-s.tsv'
 $dbname = 'coca2gram'
+$monogramfile = 'n-grams/dic10000'
 #==================Ngram処理====================
 
 class NgramCompression
@@ -129,10 +130,10 @@ class NgramCompression
     dict = NgramTableFromFile.new
     edic = {}
     ddic = {}
-    dict.setup('n-grams/dic1000',edic,ddic)
-    bin = 4
+    dict.setup($monogramfile,edic,ddic)
+    bin = 0
     (1..lz78dict.count-1).each do |i|
-      if rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]],encode_dic)
+      if bin != 0 && rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]],encode_dic)
         bin << 1
         bin = omega(bin,rank)
       else
@@ -155,6 +156,55 @@ class NgramCompression
     dict.print_rate
     dict.print_add_table
     bin
+  end
+
+  def lz78deconvert_mix(bin,ngram)
+    dict = NgramTableFromFile.new
+    edic = {}
+    ddic = {}
+    dict.setup($monogramfile,edic,ddic)
+    ary = []
+    lz78dict = []
+
+    length = bin.bit_length
+    while(length > 0)
+      if(bin[bin.bit_length - 1] == 0)
+        bin.erase_msb(1)
+        length -= 1
+        (rank,bin,length) = decode()
+        word = ngram.next_word(rank)
+      else
+        if(bin[bin.bit_length - 2] == 0)
+          bin.erase_msb(2)
+          length -= 2
+          (rank,bin,length) = decode()
+          word = ngram.next_word(rank)
+        else
+          bin.erase_msb(2)
+          length -= 2
+          (rank,bin,length) = decode()
+          word = rank.chr
+        end
+      end
+      (rank,bin,length) = decode()
+      freq = rank.chr
+
+      ary << [word,freq]
+    end
+
+    #omega decode
+    codes = bin
+    length = bin.bit_length
+    while length > 0
+      n = 1
+      while codes[length - 1] == 1
+        length -= (n + 1)
+        (n,codes) = codes.divmod(1 << length)
+      end
+      ary.push(n)
+      length -= 1
+    end
+    ary
   end
 
   def lz78_decompress(ngram,pairs,first)

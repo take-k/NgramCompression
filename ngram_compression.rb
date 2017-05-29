@@ -54,17 +54,27 @@ class NgramCompression
     ngram.print_rate
     ngram.print_add_table
     ngram.finish
+    bin
   end
 
-  def decode(bin , first_word ,file = 'decode.txt')
-    ngram = NgramTableFromPg.new
-    ngram.setup
+  def decode(bin ,file = 'decode.txt')
+    encode_dic = {}
+    if $is_db
+      ngram = NgramTableFromPg.new
+      puts "tablename: #{$dbname}"
+      ngram.setup
+    else
+      ngram = NgramTableFromFile.new
+      ngramfile = $ngramfile
+      puts "ngramfile: #{ngramfile}"
+      ngram.setup(ngramfile,encode_dic,@decode_dic)
+    end
     #復号
     #ranks = d_omega(bin)
     #ranks.shift
     #first = first_word
 
-    str = lz78_decompress(ngram,@ary ,@first)
+    str = lz78_decompress(bin,ngram)
 
     File.open(file, 'wb') do |f|
       f.write(str)
@@ -181,7 +191,7 @@ class NgramCompression
         if(bin[length - 2] == 0)
           length -= 2
           (rank,length) = decode_omega(bin,length)
-          word = ngram.next_word([],rank,ddic)
+          word = dict.next_word([],rank,ddic)
         else
           length -= 2
           (size,length) = decode_omega(bin,length)#サイズ情報
@@ -194,17 +204,19 @@ class NgramCompression
         end
       end
       (freq,length) = decode_omega(bin,length)
+      freq -= 1
       ary << [word,freq]
       pre = word
     end
     ary
   end
 
-  def lz78_decompress(ngram,pairs,first)
+  def lz78_decompress(bin,ngram)
     words_hash = {0=>[]}
     counter = 0
 
-    str = first
+    pairs = lz78deconvert_mix(bin,ngram)
+
     results = []
     pairs.each do |word,num|
       words = words_hash[num] + [word]
@@ -263,7 +275,7 @@ end
 
 ngram = NgramCompression.new
 puts Benchmark.measure {
-  ngram.compress $targetfile #cantrbry/alice29.txt
-  #ngram.decode 0,0
+  bin = ngram.compress $targetfile #cantrbry/alice29.txt
+  ngram.decode bin
   puts Benchmark::CAPTION
 }

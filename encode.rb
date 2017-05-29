@@ -1,3 +1,5 @@
+require './tools.rb'
+
 def alpha(number,x)
   (number << x) + x
 end
@@ -22,6 +24,17 @@ def omega(number,x)
   end
   code = code << 1 #最下位ビットに0
   (number << code.bit_length) + code
+end
+
+def decode_omega(bin,length)
+  n = 1
+  while bin[length - 1] == 1
+    flength = length
+    length -= (n + 1)
+    n = (bin % (1 << flength)) / (1 << length)
+  end
+  length -= 1
+  [n,length]
 end
 
 def d_omega(number)

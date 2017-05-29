@@ -113,6 +113,10 @@ class NgramCompression
     bin = lz78convert_mix(results,ngram,encode_dic)
     p '2-gram lz'
     p "content:#{bin.bit_length / 8}"
+
+#    p @ary
+#    p lz78deconvert_mix(bin,ngram)
+
     bin
   end
 
@@ -132,21 +136,21 @@ class NgramCompression
     ddic = {}
     dict.setup($monogramfile,edic,ddic)
     bin = 0
-    (1..lz78dict.count-1).each do |i|
+    (0..lz78dict.count-1).each do |i|
       if bin != 0 && rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]],encode_dic)
-        bin << 1
+        bin <<= 1
         bin = omega(bin,rank)
       else
         if rank = dict.check_rank([lz78dict[i][0]],edic)
-          bin << 2
+          bin <<= 2
           bin += 2
           bin = omega(bin,rank)
         else
-          bin << 2
+          bin <<= 2
           bin += 3
+          bin = omega(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
-            bin << 8
-            bin += char
+            bin = omega(bin,char)
           end
         end
       end
@@ -166,43 +170,32 @@ class NgramCompression
     ary = []
     lz78dict = []
 
+    pre = ''
     length = bin.bit_length
     while(length > 0)
-      if(bin[bin.bit_length - 1] == 0)
-        bin.erase_msb(1)
+      if(bin[length - 1] == 0)
         length -= 1
-        (rank,bin,length) = decode()
-        word = ngram.next_word(rank)
+        (rank,length) = decode_omega(bin,length)
+        word = ngram.next_word([pre],rank,@decode_dic)
       else
-        if(bin[bin.bit_length - 2] == 0)
-          bin.erase_msb(2)
+        if(bin[length - 2] == 0)
           length -= 2
-          (rank,bin,length) = decode()
-          word = ngram.next_word(rank)
+          (rank,length) = decode_omega(bin,length)
+          word = ngram.next_word([],rank,ddic)
         else
-          bin.erase_msb(2)
           length -= 2
-          (rank,bin,length) = decode()
-          word = rank.chr
+          (size,length) = decode_omega(bin,length)#サイズ情報
+          size -= 1
+          word = ''
+          (1..size).each do |i|
+            (char,length) = decode_omega(bin,length)
+            word << char.chr
+          end
         end
       end
-      (rank,bin,length) = decode()
-      freq = rank.chr
-
+      (freq,length) = decode_omega(bin,length)
       ary << [word,freq]
-    end
-
-    #omega decode
-    codes = bin
-    length = bin.bit_length
-    while length > 0
-      n = 1
-      while codes[length - 1] == 1
-        length -= (n + 1)
-        (n,codes) = codes.divmod(1 << length)
-      end
-      ary.push(n)
-      length -= 1
+      pre = word
     end
     ary
   end

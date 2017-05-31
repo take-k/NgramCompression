@@ -62,10 +62,6 @@ class NgramCompression
       puts "ngramfile: #{ngramfile}"
       ngram.setup(ngramfile)
     end
-    #復号
-    #ranks = d_omega(bin)
-    #ranks.shift
-    #first = first_word
 
     str = lz78_decompress(bin,ngram)
 
@@ -116,10 +112,6 @@ class NgramCompression
     bin = lz78convert_mix(results,ngram)
     p '2-gram lz'
     p "content:#{bin.bit_length / 8}"
-
-#    p @ary
-#    p lz78deconvert_mix(bin,ngram)
-
     bin
   end
 
@@ -134,15 +126,15 @@ class NgramCompression
   end
 
   def lz78convert_mix(lz78dict,ngram)
-    dict = NgramTableFromFile.new
-    dict.setup($monogramfile)
+    monogram = NgramTableFromFile.new
+    monogram.setup($monogramfile)
     bin = 0
     (0..lz78dict.count-1).each do |i|
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
         bin <<= 1
         bin = omega(bin,rank)
       else
-        if rank = dict.rank([lz78dict[i][0]])
+        if rank = monogram.rank([lz78dict[i][0]])
           bin <<= 2
           bin += 2
           bin = omega(bin,rank)
@@ -157,17 +149,15 @@ class NgramCompression
       end
       bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
     end
-    dict.finish
-    dict.print_rate
-    dict.print_add_table
+    monogram.finish
+    monogram.print_rate
+    monogram.print_add_table
     bin
   end
 
   def lz78deconvert_mix(bin,ngram)
-    dict = NgramTableFromFile.new
-    edic = {}
-    ddic = {}
-    dict.setup($monogramfile,edic,ddic)
+    monogram = NgramTableFromFile.new
+    monogram.setup($monogramfile)
     ary = []
     lz78dict = []
 
@@ -182,7 +172,7 @@ class NgramCompression
         if(bin[length - 2] == 0)
           length -= 2
           (rank,length) = decode_omega(bin,length)
-          word = dict.next_word([],rank)
+          word = monogram.next_word([],rank)
         else
           length -= 2
           (size,length) = decode_omega(bin,length)#サイズ情報

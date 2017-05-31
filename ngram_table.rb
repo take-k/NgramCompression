@@ -108,21 +108,15 @@ class NgramTableFromFile < NgramTable
     end
   end
 
-  def check_rank(keywords)
+  def rank(keywords,update = false)
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     @total+= 1
-    @fail += 1 if encode_last_dic[last] == nil
-    encode_last_dic[last]
-  end
+    @fail += 1 if fail = (encode_last_dic[last] == nil)
+    return encode_last_dic[last] if !update
 
-  def rank(keywords)
-    words = keywords[0,keywords.size-1]
-    last = keywords[-1]
-    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    if encode_last_dic[last] == nil
+    if fail
       if keywords.size == 1
         rank = @count + 1 #1-gramのみ計算がかかるので高速化
         @count += 1
@@ -130,13 +124,13 @@ class NgramTableFromFile < NgramTable
         rank = encode_last_dic.count + 1
       end
 
-      @fail+=1
       encode_last_dic[last] = rank
+
+      decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       decode_last_dic[rank] = last
       #@add_table_str << keywords.join(' ') << ' ' << "\n"
       @add_table_str << keywords.join(' ') << ' '
     end
-    @total+=1
     encode_last_dic[last]
   end
 

@@ -89,7 +89,7 @@ class NgramCompression
         first_words << word
       else
         words[i-(n-1)..i]
-        ranks << ngram.rank(words[i-(n-1)..i])
+        ranks << ngram.rank(words[i-(n-1)..i],true)
       end
     end
     [first_words,ranks]
@@ -128,7 +128,7 @@ class NgramCompression
   def lz78convert_2gram(lz78dict,ngram)
     bin = 4
     (1..results.count-1).each do |i|
-      rank = ngram.rank([results[i-(n-1)..i][0]])
+      rank = ngram.rank([results[i-(n-1)..i][0]],true)
       bin = omega(bin,rank)
       bin = omega( bin ,results[i][1] + 1) #0は符号化できない
     end
@@ -140,11 +140,11 @@ class NgramCompression
     dict.setup($monogramfile)
     bin = 0
     (0..lz78dict.count-1).each do |i|
-      if bin != 0 && rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]])
+      if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
         bin <<= 1
         bin = omega(bin,rank)
       else
-        if rank = dict.check_rank([lz78dict[i][0]])
+        if rank = dict.rank([lz78dict[i][0]])
           bin <<= 2
           bin += 2
           bin = omega(bin,rank)

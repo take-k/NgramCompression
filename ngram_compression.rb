@@ -20,14 +20,10 @@ class NgramCompression
 
   def compress(file)
     puts "targetfile: #{file} ========================="
-    str = ''
-    File.open(file,'rb') do |io|
-      str = io.read
-    end
+    str = open(file,'rb').read
     #parse
     regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
     words = str.split(regex)
-    @first = words[0] #TODO delete
 
     #ngramセットアップ
     @n = $n
@@ -53,14 +49,9 @@ class NgramCompression
 
   def decode(bin ,file = 'decode.txt')
     if $is_db
-      ngram = NgramTableFromPg.new
-      puts "tablename: #{$dbname}"
-      ngram.setup
+      ngram = NgramTableFromPg.new($dbname)
     else
-      ngram = NgramTableFromFile.new
-      ngramfile = $ngramfile
-      puts "ngramfile: #{ngramfile}"
-      ngram.setup(ngramfile)
+      ngram = NgramTableFromFile.new($ngramfile)
     end
 
     str = lz78_decompress(bin,ngram)
@@ -126,8 +117,7 @@ class NgramCompression
   end
 
   def lz78convert_mix(lz78dict,ngram)
-    monogram = NgramTableFromFile.new
-    monogram.setup($monogramfile)
+    monogram = NgramTableFromFile.new($monogramfile)
     bin = 0
     (0..lz78dict.count-1).each do |i|
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
@@ -156,9 +146,8 @@ class NgramCompression
   end
 
   def lz78deconvert_mix(bin,ngram)
-    monogram = NgramTableFromFile.new
-    monogram.setup($monogramfile)
-    ary = []
+    monogram = NgramTableFromFile.new($monogramfile)
+    words = []
     lz78dict = []
 
     pre = ''
@@ -186,10 +175,10 @@ class NgramCompression
       end
       (freq,length) = decode_omega(bin,length)
       freq -= 1
-      ary << [word,freq]
+      words << [word,freq]
       pre = word
     end
-    ary
+    words
   end
 
   def lz78_decompress(bin,ngram)

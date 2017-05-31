@@ -32,13 +32,11 @@ class NgramCompression
     #ngramセットアップ
     @n = $n
     if $is_db
-      ngram = NgramTableFromPg.new
+      ngram = NgramTableFromPg.new($dbname)
       puts "tablename: #{$dbname}"
-      ngram.setup
     else
-      ngram = NgramTableFromFile.new
+      ngram = NgramTableFromFile.new($ngramfile)
       puts "ngramfile: #{$ngramfile}"
-      ngram.setup($ngramfile)
     end
 
     @ary = []

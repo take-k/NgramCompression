@@ -23,7 +23,7 @@ class NgramTable
 end
 
 class NgramTableFromPg < NgramTable
-  def setup(db_name='coca2gram',encode_dic=nil,decode_dic=nil)
+  def initialize(db_name='coca2gram')
     @db_name = db_name
     reset_count
     @connection = PG::connect(dbname: "ngram")
@@ -89,7 +89,7 @@ end
 
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
-  def setup(file = 'n-grams/dic1000',encode_table = {},decode_table = {})
+  def initialize(file = 'n-grams/dic1000',encode_table = {},decode_table = {})
     @encode_table = encode_table
     @decode_table = decode_table
     reset_count

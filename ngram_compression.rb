@@ -24,7 +24,6 @@ class NgramCompression
     File.open(file,'rb') do |io|
       str = io.read
     end
-
     #parse
     regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
     words = str.split(regex)
@@ -32,23 +31,20 @@ class NgramCompression
 
     #ngramセットアップ
     @n = $n
-    encode_dic = {}
-    @decode_dic = {}
     if $is_db
       ngram = NgramTableFromPg.new
       puts "tablename: #{$dbname}"
       ngram.setup
     else
       ngram = NgramTableFromFile.new
-      ngramfile = $ngramfile
-      puts "ngramfile: #{ngramfile}"
-      ngram.setup(ngramfile,encode_dic,@decode_dic)
+      puts "ngramfile: #{$ngramfile}"
+      ngram.setup($ngramfile)
     end
 
     @ary = []
 
     #圧縮
-    bin = lz78_compress(words,ngram,encode_dic)
+    bin = lz78_compress(words,ngram)
     puts "before:#{(str.length).to_s_comma} byte"
     puts "after:#{(bin.bit_length / 8).to_s_comma} byte"
     ngram.print_rate
@@ -58,7 +54,6 @@ class NgramCompression
   end
 
   def decode(bin ,file = 'decode.txt')
-    encode_dic = {}
     if $is_db
       ngram = NgramTableFromPg.new
       puts "tablename: #{$dbname}"
@@ -67,7 +62,7 @@ class NgramCompression
       ngram = NgramTableFromFile.new
       ngramfile = $ngramfile
       puts "ngramfile: #{ngramfile}"
-      ngram.setup(ngramfile,encode_dic,@decode_dic)
+      ngram.setup(ngramfile)
     end
     #復号
     #ranks = d_omega(bin)
@@ -85,7 +80,7 @@ class NgramCompression
 
   ###========================================================
 
-  def convert_to_ranks(words,ngram,encode_dic)#最初の文字群とrankの配列
+  def convert_to_ranks(words,ngram)#最初の文字群とrankの配列
     n = @n
     first_words = []
     ranks = []
@@ -94,13 +89,13 @@ class NgramCompression
         first_words << word
       else
         words[i-(n-1)..i]
-        ranks << ngram.rank(words[i-(n-1)..i],encode_dic,@decode_dic)
+        ranks << ngram.rank(words[i-(n-1)..i])
       end
     end
     [first_words,ranks]
   end
 
-  def lz78_compress(words,ngram,encode_dic)
+  def lz78_compress(words,ngram)
     words_hash = {[]=>0}
     results = []
     counter = 0
@@ -120,7 +115,7 @@ class NgramCompression
         @ary << ['',words_hash[ary]]
       end
     end
-    bin = lz78convert_mix(results,ngram,encode_dic)
+    bin = lz78convert_mix(results,ngram)
     p '2-gram lz'
     p "content:#{bin.bit_length / 8}"
 
@@ -130,28 +125,26 @@ class NgramCompression
     bin
   end
 
-  def lz78convert_2gram(lz78dict,ngram,encode_dic)
+  def lz78convert_2gram(lz78dict,ngram)
     bin = 4
     (1..results.count-1).each do |i|
-      rank = ngram.rank([results[i-(n-1)..i][0]],encode_dic,@decode_dic)
+      rank = ngram.rank([results[i-(n-1)..i][0]])
       bin = omega(bin,rank)
       bin = omega( bin ,results[i][1] + 1) #0は符号化できない
     end
     bin
   end
 
-  def lz78convert_mix(lz78dict,ngram,encode_dic)
+  def lz78convert_mix(lz78dict,ngram)
     dict = NgramTableFromFile.new
-    edic = {}
-    ddic = {}
-    dict.setup($monogramfile,edic,ddic)
+    dict.setup($monogramfile)
     bin = 0
     (0..lz78dict.count-1).each do |i|
-      if bin != 0 && rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]],encode_dic)
+      if bin != 0 && rank = ngram.check_rank([lz78dict[i-1][0],lz78dict[i][0]])
         bin <<= 1
         bin = omega(bin,rank)
       else
-        if rank = dict.check_rank([lz78dict[i][0]],edic)
+        if rank = dict.check_rank([lz78dict[i][0]])
           bin <<= 2
           bin += 2
           bin = omega(bin,rank)
@@ -186,12 +179,12 @@ class NgramCompression
       if(bin[length - 1] == 0)
         length -= 1
         (rank,length) = decode_omega(bin,length)
-        word = ngram.next_word([pre],rank,@decode_dic)
+        word = ngram.next_word([pre],rank)
       else
         if(bin[length - 2] == 0)
           length -= 2
           (rank,length) = decode_omega(bin,length)
-          word = dict.next_word([],rank,ddic)
+          word = dict.next_word([],rank)
         else
           length -= 2
           (size,length) = decode_omega(bin,length)#サイズ情報
@@ -227,9 +220,9 @@ class NgramCompression
     join_words(results)
   end
 
-  def naive_compress(words,ngram,encode_dic)
+  def naive_compress(words,ngram)
     bin = 4
-    first_words,ranks = convert_to_ranks(words,ngram,encode_dic)
+    first_words,ranks = convert_to_ranks(words,ngram)
     ranks.each do |rank|
       #@ary.push(rank)
       bin = omega(bin,rank)
@@ -241,7 +234,7 @@ class NgramCompression
   def naive_decompress(ngram,ranks,first)
     pre = first
     words = ranks.map do |rank|
-      word = ngram.next_word([pre],rank,@decode_dic)
+      word = ngram.next_word([pre],rank)
       pre = word
     end
     join_words([first] + words)

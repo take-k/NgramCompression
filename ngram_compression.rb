@@ -7,7 +7,7 @@ include Benchmark
 $targetfile = 'cantrbry/alice29.txt'
 $is_db = false
 $n = 2
-$ngramfile = 'n-grams/w2-s.tsv'
+$ngramfile = ARGV[0]
 $dbname = 'coca2gram'
 $monogramfile = 'n-grams/dic10000'
 #==================Ngram処理====================
@@ -24,6 +24,8 @@ class NgramCompression
     #parse
     regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
     words = str.split(regex)
+    #@excludes.each {|x| words.delete(x)}
+    #words.delete("")
 
     #ngramセットアップ
     @n = $n
@@ -246,6 +248,6 @@ end
 ngram = NgramCompression.new
 puts Benchmark.measure {
   bin = ngram.compress $targetfile #cantrbry/alice29.txt
-  ngram.decode bin
+  #ngram.decode bin
   puts Benchmark::CAPTION
 }

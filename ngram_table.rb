@@ -1,5 +1,5 @@
 require 'csv'
-require 'pg'
+#require 'pg'
 
 class NgramTable
   attr_reader :add_table_str

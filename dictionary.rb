@@ -33,6 +33,7 @@ def web2gm
     if word1 == tmp
       dic[word2] = freq
     else
+      dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
       dic.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
       dic = {}
       dic[word2] = freq

@@ -1,5 +1,5 @@
 require 'csv'
-#require 'pg'
+require 'pg'
 
 class NgramTable
   attr_reader :add_table_str
@@ -27,6 +27,8 @@ class NgramTableFromPg < NgramTable
     @db_name = db_name
     reset_count
     @connection = PG::connect(dbname: "ngram")
+    @encode_table = {}
+    @decode_table = {}
   end
 
   def insert_str(str)
@@ -48,35 +50,38 @@ class NgramTableFromPg < NgramTable
     results.count > 0 ? results[0]['rank'].to_i : nil
   end
 
-  def rank(keywords,encode_add_dic,decode_add_dic)
-    words = keywords.clone
-    condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
-    results = @connection.exec("SELECT rank FROM #{@db_name} WHERE #{condition}",words)
+  def rank(keywords,update = false)
+    condition = (1..keywords.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
+    results = @connection.exec("SELECT rank FROM #{@db_name} WHERE #{condition}",keywords)
     @total+= 1
-    if results.count == 0
-      last = words.pop
-      encode_last_dic = words.inject(encode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    not_found = (results.count == 0)
+    if not_found
+      @fail += 1
+      words = keywords[0,keywords.size-1]
+      last = keywords[-1]
+      return nil if not_found
+      encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       return encode_last_dic[last] if encode_last_dic[last] != nil
-      decode_last_dic = words.inject(decode_add_dic){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+      decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
       word1_count_results = @connection.exec("SELECT COUNT(rank) FROM #{@db_name} WHERE #{condition}",words)
       rank = word1_count_results[0]['count'].to_i + encode_last_dic.count + 1
       encode_last_dic[last] = rank
       decode_last_dic[rank] = last
       @add_table_str << keywords.join(' ') << ' ' << rank.to_s << "\n"
-      @fail += 1
     else
       rank = results[0]['rank'].to_i
     end
     rank
   end
 
-  def next_word(pre_words,rank,decode_dic)
+  def next_word(pre_words,rank,use_decode_table = false)
     words = pre_words
     condition = (1..words.count).map{|i| "word#{i} = $#{i}"}.join(' AND ')
     results = @connection.exec("SELECT word2 FROM #{@db_name} WHERE #{condition} AND rank = #{rank}",words)
     if results.count == 0
-      pre_words.inject(decode_dic) { |d, key| d[key] }[rank]
+      return nil if !use_decode_table
+      pre_words.inject(@decode_table) { |d, key| d[key] }[rank]
     else
       results[0]['word2']
     end

@@ -5,11 +5,12 @@ require './tools.rb'
 include Benchmark
 
 $targetfile = 'cantrbry/alice29.txt'
-$is_db = false
+$is_db = true
 $n = 2
-$ngramfile = ARGV[0]
-$dbname = 'coca2gram'
+$ngramfile = ARGV[0] ? ARGV[0]:'n-grams/w2-s.tsv'
+$dbname = ARGV[0] ? ARGV[0]:'coca2gram'
 $monogramfile = 'n-grams/dic10000'
+
 #==================Ngram処理====================
 
 class NgramCompression

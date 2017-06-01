@@ -4,6 +4,7 @@ include Benchmark
 
 $in = ARGV[0]
 $out = ARGV[1]
+$threshold = ARGV[2].to_i
 
 #$stdin = open(input, "rb")
 $stdout = open($out, "wb") if ARGV[1]
@@ -23,21 +24,23 @@ def web1gm
 end
 
 def web2gm
-  freq_threadshold = 0
+  freq_threadshold = $threshold
   dic = {}
   tmp = ''
   open($in,'rb').each_line do |line|
     str,freqstr = line.split("\t")
     freq = freqstr.to_i
-    word1,word2 = str.split
-    if word1 == tmp
-      dic[word2] = freq
-    else
-      dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
-      dic.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
-      dic = {}
-      dic[word2] = freq
-      tmp = word1
+    if $threshold <= freq
+      word1,word2 = str.split
+      if word1 == tmp
+        dic[word2] = freq
+      else
+        dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
+        dic.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
+        dic = {}
+        dic[word2] = freq
+        tmp = word1
+      end
     end
   end
   #dic.each do |word1,word2_dic|

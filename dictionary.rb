@@ -6,7 +6,7 @@ $in = ARGV[0]
 $out = ARGV[1]
 
 #$stdin = open(input, "rb")
-$stdout = open(out, "wb") if ARGV[1]
+$stdout = open($out, "wb") if ARGV[1]
 
 def web1gm
   freq_threadshold = 10000

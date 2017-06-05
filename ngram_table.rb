@@ -59,7 +59,8 @@ class NgramTableFromPg < NgramTable
       @fail += 1
       words = keywords[0,keywords.size-1]
       last = keywords[-1]
-      return nil if not_found
+      @add_table_str << keywords.join(' ') << '   '
+      return nil if !update
       encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       return encode_last_dic[last] if encode_last_dic[last] != nil
       decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}

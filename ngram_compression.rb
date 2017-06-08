@@ -12,7 +12,7 @@ opts.on("-d") {|v| config[:d] = true}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
-$is_db = config[:d] != nil || ENV[:DB] != nil
+$is_db = config[:d] != nil || ENV['DB'] == 'true'
 $n = 2
 $ngramfile = ARGV[1] ? ARGV[1]:'n-grams/w2-s.tsv'
 $dbname = ARGV[1] ? ARGV[1]:'google2gram'

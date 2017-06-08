@@ -1,14 +1,21 @@
+require 'optparse'
 require 'benchmark'
 require './encode.rb'
 require './ngram_table.rb'
 require './tools.rb'
+
 include Benchmark
 
-$targetfile = 'cantrbry/alice29.txt'
-$is_db = true
+config = {}
+opts = OptionParser.new
+opts.on("-d") {|v| config[:d] = true}
+opts.parse!(ARGV)
+
+$targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
+$is_db = config[:d] != nil || ENV[:DB] != nil
 $n = 2
-$ngramfile = ARGV[0] ? ARGV[0]:'n-grams/w2-s.tsv'
-$dbname = ARGV[0] ? ARGV[0]:'coca2gram'
+$ngramfile = ARGV[1] ? ARGV[1]:'n-grams/w2-s.tsv'
+$dbname = ARGV[1] ? ARGV[1]:'google2gram'
 $monogramfile = 'n-grams/dic10000'
 
 #==================Ngram処理====================

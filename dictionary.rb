@@ -36,21 +36,22 @@ def web2gm
         dic[word2] = freq
       else
         dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
-        dic.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
+        dic.each_with_index { |(k, v),i| puts "#{tmp}\t#{k}\t#{i+1}" }
         dic = {}
         dic[word2] = freq
         tmp = word1
       end
     end
   end
+
+  dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
+  dic.each_with_index { |(k, v),i| puts "#{tmp}\t#{k}\t#{i+1}" }
   #dic.each do |word1,word2_dic|
   #  ranks = word2_dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
   #  ranks.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
   #end
 end
 
-puts Benchmark.measure {
-  web2gm
-}
+web2gm
 
 

@@ -52,7 +52,7 @@ class NgramCompression
     puts "before:#{(str.length).to_s_comma} byte"
     puts "after:#{(bin.bit_length / 8).to_s_comma} byte"
     ngram.print_rate
-    ngram.print_add_table
+    #ngram.print_add_table
     ngram.finish
     bin
   end
@@ -151,7 +151,7 @@ class NgramCompression
     end
     monogram.finish
     monogram.print_rate
-    monogram.print_add_table
+    #monogram.print_add_table
     bin
   end
 

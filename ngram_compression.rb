@@ -6,9 +6,14 @@ require './tools.rb'
 
 include Benchmark
 
+$naive = false
+$lz78 = false
+
 config = {}
 opts = OptionParser.new
 opts.on("-d") {|v| config[:d] = true}
+opts.on("-n") {|v| $naive = true}
+opts.on("-l") {|v| $lz78 = true}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -48,7 +53,11 @@ class NgramCompression
     @ary = []
 
     #圧縮
-    bin = lz78_compress(words,ngram)
+    if $naive
+      bin = naive_compress(words,ngram)
+    else
+      bin = lz78_compress(words,ngram)
+    end
     puts "size:#{(str.length).to_s_comma} / #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
     bin
   end
@@ -217,8 +226,6 @@ class NgramCompression
       #@ary.push(rank)
       bin = omega(bin,rank)
     end
-    puts "#{@n}gram naive"
-    bin
   end
 
   def naive_decompress(ngram,ranks,first)

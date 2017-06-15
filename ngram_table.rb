@@ -18,7 +18,7 @@ class NgramTable
   end
 
   def print_rate
-    puts "hit: #{@total - @fail}/#{@total}(#{(@total - @fail).to_f / @total * 100.0})%" if @total > 0
+    puts "hit: #{@total - @fail}/#{@total}(#{((@total - @fail).to_f / @total * 100.0).round})%" if @total > 0
   end
 end
 

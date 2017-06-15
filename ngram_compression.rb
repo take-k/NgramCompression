@@ -35,7 +35,7 @@ class NgramCompression
   end
 
   def compress(file)
-    puts "targetfile: #{file} ========================="
+    puts "targetfile: #{file} =========================" if $info
     str = open(file,'rb').read
     #parse
     regex = Regexp.new(" |#{@excludes.map{|s| "(#{Regexp.escape(s)})"}.join('|')}")
@@ -47,10 +47,10 @@ class NgramCompression
     @n = $n
     if $is_db
       ngram = NgramTableFromPg.new($dbname)
-      puts "tablename: #{$dbname}"
+      puts "tablename: #{$dbname}" if $info
     else
       ngram = NgramTableFromFile.new($ngramfile)
-      puts "ngramfile: #{$ngramfile}"
+      puts "ngramfile: #{$ngramfile}" if $info
     end
 
     @ary = []
@@ -61,7 +61,7 @@ class NgramCompression
     else
       bin = lz78_compress(words,ngram)
     end
-    puts "size:#{(str.length).to_s_comma} / #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
+    puts "#{$targetfile} :#{(str.length).to_s_comma} -> #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
     bin
   end
 
@@ -123,11 +123,12 @@ class NgramCompression
 
     bin = lz78convert_mix(results,ngram,monogram)
 
-    #ngram.print_rate
+    puts '--hit rate--' if $info
+    ngram.print_rate if $info
     #ngram.print_add_table
 
+    monogram.print_rate if $info
     monogram.finish
-    #monogram.print_rate
 
     bin
   end
@@ -151,25 +152,27 @@ class NgramCompression
     @num_ngram = 0
     @num_1gram = 0
     @num_raw = 0
-    @total = lz78dict.count
+    @total = 0
     ol = 0
     bin = 1
     (0..lz78dict.count-1).each do |i|
+      length = lz78dict[i][0].length
+      @total += length
       ol = bin.bit_length if $info
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
-        @num_ngram += 1 if $info
+        @num_ngram += length if $info
         bin <<= 1
         bin = omega(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
         if rank = monogram.rank([lz78dict[i][0]])
-          @num_1gram += 1 if $info
+          @num_1gram += length if $info
           bin <<= 2
           bin += 2
           bin = omega(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
         else
-          @num_raw += 1 if $info
+          @num_raw += length if $info
           bin <<= 2
           bin += 3
           bin = omega(bin,lz78dict[i][0].size + 1)
@@ -184,21 +187,23 @@ class NgramCompression
       @length_code += bin.bit_length - ol if $info
     end
 
+    puts '--lz78 data--' if $info
     bitl = bin.bit_length / 8
-    puts_rate(@num_ngram,@total) if $info
-    puts_rate(@num_1gram,@total) if $info
-    puts_rate(@num_raw,@total) if $info
+    puts_rate(@num_ngram,@total , 'ngram chars') if $info
+    puts_rate(@num_1gram,@total , '1gram chars') if $info
+    puts_rate(@num_raw,@total , 'rawtxt chars') if $info
 
-    puts_rate(@length_ngram / 8,bitl,'xsize','byte') if $info
-    puts_rate(@length_1gram / 8,bitl,'xsize','byte') if $info
-    puts_rate(@length_raw / 8,bitl,'xsize','byte') if $info
-    puts_rate(@length_code / 8,bitl,'xsize','byte') if $info
+    puts '--compression size--' if $info
+    puts_rate(@length_ngram / 8,bitl,'ngram size','byte') if $info
+    puts_rate(@length_1gram / 8,bitl,'1gram size','byte') if $info
+    puts_rate(@length_raw / 8,bitl,'rawtxt size','byte') if $info
+    puts_rate(@length_code / 8,bitl,'code size','byte') if $info
     bin
   end
 
   def puts_rate(x,total,prefix = 'hit', suffix = '')
     if total > 0
-      puts "#{prefix}:#{x.to_s_comma} / #{total.to_s_comma}#{suffix}(#{(x.to_f/total * 100).to_i}%)"
+      puts "#{prefix}:#{x.to_s_comma} / #{total.to_s_comma}#{suffix}(#{(x.to_f/total * 100).round}%)"
     else
       puts "#{prefix} : #{x}/0#{suffix}"
     end
@@ -304,8 +309,12 @@ class NgramCompression
 end
 
 ngram = NgramCompression.new
-puts Benchmark.measure {
+if $info
+  puts Benchmark.measure {
+    bin = ngram.compress $targetfile #cantrbry/alice29.txt
+    #ngram.decode bin
+    puts Benchmark::CAPTION
+  }
+else
   bin = ngram.compress $targetfile #cantrbry/alice29.txt
-  #ngram.decode bin
-  puts Benchmark::CAPTION
-}
+end

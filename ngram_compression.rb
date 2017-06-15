@@ -137,8 +137,8 @@ class NgramCompression
     bin = 4
     (1..results.count-1).each do |i|
       rank = ngram.rank([results[i-(n-1)..i][0]],true)
-      bin = omega(bin,rank)
-      bin = omega( bin ,results[i][1] + 1) #0は符号化できない
+      bin = delta(bin,rank)
+      bin = delta( bin ,results[i][1] + 1) #0は符号化できない
     end
     bin
   end
@@ -162,28 +162,28 @@ class NgramCompression
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
         @num_ngram += length if $info
         bin <<= 1
-        bin = omega(bin,rank)
+        bin = delta(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
         if rank = monogram.rank([lz78dict[i][0]])
           @num_1gram += length if $info
           bin <<= 2
           bin += 2
-          bin = omega(bin,rank)
+          bin = delta(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
         else
           @num_raw += length if $info
           bin <<= 2
           bin += 3
-          bin = omega(bin,lz78dict[i][0].size + 1)
+          bin = delta(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
-            bin = omega(bin,char)
+            bin = delta(bin,char)
           end
           @length_raw += bin.bit_length - ol if $info
         end
       end
       ol = bin.bit_length if $info
-      bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      bin = delta( bin ,lz78dict[i][1] + 1) #0は符号化できない
       @length_code += bin.bit_length - ol if $info
     end
 

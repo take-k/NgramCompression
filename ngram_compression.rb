@@ -6,6 +6,8 @@ require './tools.rb'
 
 include Benchmark
 
+$info = false
+
 $naive = false
 $lz78 = false
 
@@ -14,6 +16,7 @@ opts = OptionParser.new
 opts.on("-d") {|v| config[:d] = true}
 opts.on("-n") {|v| $naive = true}
 opts.on("-l") {|v| $lz78 = true}
+opts.on("-i") {|v| $info = true}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -120,11 +123,11 @@ class NgramCompression
 
     bin = lz78convert_mix(results,ngram,monogram)
 
-    ngram.print_rate
+    #ngram.print_rate
     #ngram.print_add_table
 
     monogram.finish
-    monogram.print_rate
+    #monogram.print_rate
 
     bin
   end
@@ -141,29 +144,64 @@ class NgramCompression
 
   $ll = 0
   def lz78convert_mix(lz78dict,ngram,monogram = NgramTableFromFile.new($monogramfile))
-
+    @length_ngram = 0
+    @length_1gram = 0
+    @length_raw = 0
+    @length_code = 0
+    @num_ngram = 0
+    @num_1gram = 0
+    @num_raw = 0
+    @total = lz78dict.count
+    ol = 0
     bin = 1
     (0..lz78dict.count-1).each do |i|
+      ol = bin.bit_length if $info
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
+        @num_ngram += 1 if $info
         bin <<= 1
         bin = omega(bin,rank)
+        @length_ngram += bin.bit_length - ol if $info
       else
-        # if rank = monogram.rank([lz78dict[i][0]])
-        #   bin <<= 2
-        #   bin += 2
-        #   bin = omega(bin,rank)
-        # else
-        #   bin <<= 2
-        #   bin += 3
-        #   bin = omega(bin,lz78dict[i][0].size + 1)
-        #   lz78dict[i][0].unpack("C*").each do |char|
-        #     bin = omega(bin,char)
-        #   end
-        # end
+        if rank = monogram.rank([lz78dict[i][0]])
+          @num_1gram += 1 if $info
+          bin <<= 2
+          bin += 2
+          bin = omega(bin,rank)
+          @length_1gram += bin.bit_length - ol if $info
+        else
+          @num_raw += 1 if $info
+          bin <<= 2
+          bin += 3
+          bin = omega(bin,lz78dict[i][0].size + 1)
+          lz78dict[i][0].unpack("C*").each do |char|
+            bin = omega(bin,char)
+          end
+          @length_raw += bin.bit_length - ol if $info
+        end
       end
-      #bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      ol = bin.bit_length if $info
+      bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      @length_code += bin.bit_length - ol if $info
     end
+
+    bitl = bin.bit_length / 8
+    puts_rate(@num_ngram,@total) if $info
+    puts_rate(@num_1gram,@total) if $info
+    puts_rate(@num_raw,@total) if $info
+
+    puts_rate(@length_ngram / 8,bitl,'xsize','byte') if $info
+    puts_rate(@length_1gram / 8,bitl,'xsize','byte') if $info
+    puts_rate(@length_raw / 8,bitl,'xsize','byte') if $info
+    puts_rate(@length_code / 8,bitl,'xsize','byte') if $info
     bin
+  end
+
+  def puts_rate(x,total,prefix = 'hit', suffix = '')
+    if total > 0
+      puts "#{prefix}:#{x.to_s_comma} / #{total.to_s_comma}#{suffix}(#{(x.to_f/total * 100).to_i}%)"
+    else
+      puts "#{prefix} : #{x}/0#{suffix}"
+    end
   end
 
   def lz78deconvert_mix(bin,ngram)

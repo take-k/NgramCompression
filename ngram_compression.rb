@@ -122,7 +122,6 @@ class NgramCompression
 
     ngram.print_rate
     #ngram.print_add_table
-    ngram.finish
 
     monogram.finish
     monogram.print_rate
@@ -227,6 +226,7 @@ class NgramCompression
       bin = omega(bin,rank)
     end
     puts 'naive'
+    ngram.print_rate
     bin
   end
 

@@ -226,6 +226,8 @@ class NgramCompression
       #@ary.push(rank)
       bin = omega(bin,rank)
     end
+    puts 'naive'
+    bin
   end
 
   def naive_decompress(ngram,ranks,first)

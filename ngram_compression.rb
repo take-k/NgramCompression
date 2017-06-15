@@ -49,11 +49,7 @@ class NgramCompression
 
     #圧縮
     bin = lz78_compress(words,ngram)
-    puts "before:#{(str.length).to_s_comma} byte"
-    puts "after:#{(bin.bit_length / 8).to_s_comma} byte"
-    ngram.print_rate
-    #ngram.print_add_table
-    ngram.finish
+    puts "size:#{(str.length).to_s_comma} / #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
     bin
   end
 
@@ -110,9 +106,18 @@ class NgramCompression
         @ary << ['',words_hash[ary]]
       end
     end
-    bin = lz78convert_mix(results,ngram)
-    p '2-gram lz'
-    p "content:#{bin.bit_length / 8}"
+
+    monogram = NgramTableFromFile.new($monogramfile)
+
+    bin = lz78convert_mix(results,ngram,monogram)
+
+    ngram.print_rate
+    #ngram.print_add_table
+    ngram.finish
+
+    monogram.finish
+    monogram.print_rate
+
     bin
   end
 
@@ -126,32 +131,30 @@ class NgramCompression
     bin
   end
 
-  def lz78convert_mix(lz78dict,ngram)
-    monogram = NgramTableFromFile.new($monogramfile)
-    bin = 0
+  $ll = 0
+  def lz78convert_mix(lz78dict,ngram,monogram = NgramTableFromFile.new($monogramfile))
+
+    bin = 1
     (0..lz78dict.count-1).each do |i|
       if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
         bin <<= 1
         bin = omega(bin,rank)
       else
-        if rank = monogram.rank([lz78dict[i][0]])
-          bin <<= 2
-          bin += 2
-          bin = omega(bin,rank)
-        else
-          bin <<= 2
-          bin += 3
-          bin = omega(bin,lz78dict[i][0].size + 1)
-          lz78dict[i][0].unpack("C*").each do |char|
-            bin = omega(bin,char)
-          end
-        end
+        # if rank = monogram.rank([lz78dict[i][0]])
+        #   bin <<= 2
+        #   bin += 2
+        #   bin = omega(bin,rank)
+        # else
+        #   bin <<= 2
+        #   bin += 3
+        #   bin = omega(bin,lz78dict[i][0].size + 1)
+        #   lz78dict[i][0].unpack("C*").each do |char|
+        #     bin = omega(bin,char)
+        #   end
+        # end
       end
-      bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      #bin = omega( bin ,lz78dict[i][1] + 1) #0は符号化できない
     end
-    monogram.finish
-    monogram.print_rate
-    #monogram.print_add_table
     bin
   end
 

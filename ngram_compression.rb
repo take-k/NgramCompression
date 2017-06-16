@@ -10,6 +10,7 @@ $info = false
 
 $naive = false
 $lz78 = false
+$indexcoding = false
 
 config = {}
 opts = OptionParser.new
@@ -17,6 +18,7 @@ opts.on("-d") {|v| config[:d] = true}
 opts.on("-n") {|v| $naive = true}
 opts.on("-l") {|v| $lz78 = true}
 opts.on("-i") {|v| $info = true}
+opts.on("--indexcoding") {$indexcoding = true}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -183,9 +185,12 @@ class NgramCompression
         end
       end
       ol = bin.bit_length if $info
-      bin <<= i.bit_length
-      bin += lz78dict[i][1]
-      #bin = delta( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      if $indexcoding
+        bin = delta( bin ,lz78dict[i][1] + 1)
+      else
+        bin <<= i.bit_length
+        bin += lz78dict[i][1]
+      end
       @length_code += bin.bit_length - ol if $info
     end
 
@@ -240,13 +245,15 @@ class NgramCompression
           end
         end
       end
-      flength = length
-      length -= counter.bit_length
-      freq = (bin % (1 << flength)) / (1 << length)
-      counter+=1
-      #-= counter.bit_length
-      #(freq,length) = decode_omega(bin,length)
-      #freq -= 1
+      if $indexcoding
+        (freq,length) = decode_omega(bin,length)
+        freq -= 1
+      else
+        flength = length
+        length -= counter.bit_length
+        freq = (bin % (1 << flength)) / (1 << length)
+        counter+=1
+      end
       words << [word,freq]
       pre = word
     end

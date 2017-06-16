@@ -154,7 +154,7 @@ class NgramCompression
     @num_raw = 0
     @total = 0
     ol = 0
-    bin = 1
+    bin = 0
     (0..lz78dict.count-1).each do |i|
       length = lz78dict[i][0].length
       @total += length
@@ -177,13 +177,15 @@ class NgramCompression
           bin += 3
           bin = delta(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
-            bin = delta(bin,char)
+            bin = delta(bin,char) #TODO:fix
           end
           @length_raw += bin.bit_length - ol if $info
         end
       end
       ol = bin.bit_length if $info
-      bin = delta( bin ,lz78dict[i][1] + 1) #0は符号化できない
+      bin <<= i.bit_length
+      bin += lz78dict[i][1]
+      #bin = delta( bin ,lz78dict[i][1] + 1) #0は符号化できない
       @length_code += bin.bit_length - ol if $info
     end
 
@@ -213,6 +215,7 @@ class NgramCompression
     monogram = NgramTableFromFile.new($monogramfile)
     words = []
     lz78dict = []
+    counter = 0
 
     pre = ''
     length = bin.bit_length
@@ -237,8 +240,13 @@ class NgramCompression
           end
         end
       end
-      (freq,length) = decode_omega(bin,length)
-      freq -= 1
+      flength = length
+      length -= counter.bit_length
+      freq = (bin % (1 << flength)) / (1 << length)
+      counter+=1
+      #-= counter.bit_length
+      #(freq,length) = decode_omega(bin,length)
+      #freq -= 1
       words << [word,freq]
       pre = word
     end

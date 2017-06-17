@@ -3,6 +3,38 @@ require 'pg'
 
 class NgramTable
   attr_reader :add_table_str
+
+  def initialize
+    @encode_add_table = {}
+  end
+
+  def rank_mru(keywords,update = true)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_add_last_dic = words.inject(@encode_add_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    rank = encode_add_last_dic[last]
+    if rank == nil
+      if keywords.size == 1
+        counter = @count #1-gramのみ計算がかかるので高速化
+        @count += 1
+      else
+        counter = encode_add_last_dic.count
+      end
+
+      table_rank = self.rank(keywords)
+      notfound = table_rank == nil
+      return nil if notfound && !update
+      rank = notfound ? counter : table_rank + counter
+    end
+
+    encode_add_last_dic[last] = 1
+    encode_add_last_dic.each do |k, v|
+      encode_add_last_dic[k] = v + 1 if v < rank
+    end
+    return nil if notfound
+    rank
+  end
+
   def reset_count
     @fail = 0
     @total = 0
@@ -24,6 +56,7 @@ end
 
 class NgramTableFromPg < NgramTable
   def initialize(db_name='coca2gram')
+    super()
     @db_name = db_name
     reset_count
     @connection = PG::connect(dbname: "ngram")
@@ -96,6 +129,7 @@ end
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
   def initialize(file = 'n-grams/dic1000',encode_table = {},decode_table = {})
+    super()
     @encode_table = encode_table
     @decode_table = decode_table
     reset_count

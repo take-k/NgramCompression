@@ -161,13 +161,13 @@ class NgramCompression
       length = lz78dict[i][0].length
       @total += length
       ol = bin.bit_length if $info
-      if bin != 0 && rank = ngram.rank([lz78dict[i-1][0],lz78dict[i][0]])
+      if bin != 0 && rank = ngram.rank_mru([lz78dict[i-1][0],lz78dict[i][0]])
         @num_ngram += length if $info
         bin <<= 1
         bin = delta(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
-        if rank = monogram.rank([lz78dict[i][0]])
+        if rank = monogram.rank_mru([lz78dict[i][0]])
           @num_1gram += length if $info
           bin <<= 2
           bin += 2

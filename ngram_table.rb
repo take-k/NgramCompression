@@ -14,13 +14,7 @@ class NgramTable
     encode_add_last_dic = words.inject(@encode_add_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     rank = encode_add_last_dic[last]
     if rank == nil
-      if keywords.size == 1
-        counter = @count #1-gramのみ計算がかかるので高速化
-        @count += 1
-      else
-        counter = encode_add_last_dic.count
-      end
-
+      counter = encode_add_last_dic.count
       table_rank = self.rank(keywords)
       notfound = table_rank == nil
       return nil if notfound && !update

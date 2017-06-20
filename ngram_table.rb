@@ -6,10 +6,36 @@ class NgramTable
 
   def initialize
     @encode_add_table = {}
+    @rank_table = {}
   end
 
-  def rank_mru(keywords,update = true)
+  def rank_mru_i(keywords,update = true)
+    notfound = false
     words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    rank_table = words.inject(@rank_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    rank_table["ranks"] = [] if rank_table["ranks"] == nil
+    ranks = rank_table["ranks"]
+    rank = self.rank(keywords,false)
+    if rank == nil
+      return nil if !update
+      notfound = true
+      rank = self.rank(keywords,true) #更新
+    end
+    diff = rank
+    ranks.each do |j|
+      if diff == j
+        diff = 1
+      elsif diff < j
+        diff += 1
+      end
+    end
+    ranks << diff
+    return nil if notfound
+    diff
+  end
+
+  def rank_mru(keywords,update = true) words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_add_last_dic = words.inject(@encode_add_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     rank = encode_add_last_dic[last]
@@ -21,10 +47,10 @@ class NgramTable
       rank = notfound ? counter : table_rank + counter
     end
 
-    encode_add_last_dic[last] = 1
     encode_add_last_dic.each do |k, v|
       encode_add_last_dic[k] = v + 1 if v < rank
     end
+    encode_add_last_dic[last] = 1
     return nil if notfound
     rank
   end
@@ -163,7 +189,7 @@ class NgramTableFromFile < NgramTable
       decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       decode_last_dic[rank] = last
       #@add_table_str << keywords.join(' ') << ' ' << "\n"
-      @add_table_str << keywords.join(' ') << ' '
+      #@add_table_str << keywords.join(' ') << ' '
     end
     encode_last_dic[last]
   end

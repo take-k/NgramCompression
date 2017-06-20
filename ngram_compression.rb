@@ -11,6 +11,7 @@ $info = false
 $naive = false
 $lz78 = false
 $indexcoding = false
+$monogramfile = 'n-grams/dic10000'
 
 config = {}
 opts = OptionParser.new
@@ -19,6 +20,7 @@ opts.on("-n") {|v| $naive = true}
 opts.on("-l") {|v| $lz78 = true}
 opts.on("-i") {|v| $info = true}
 opts.on("--indexcoding") {$indexcoding = true}
+opts.on("-1 value") {|v| $monogramfile = v}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -26,7 +28,6 @@ $is_db = config[:d] != nil || ENV['DB'] == 'true'
 $n = 2
 $ngramfile = ARGV[1] ? ARGV[1]:'n-grams/w2-s.tsv'
 $dbname = ARGV[1] ? ARGV[1]:'google2gram'
-$monogramfile = 'n-grams/dic10000'
 
 #==================Ngram処理====================
 
@@ -161,13 +162,14 @@ class NgramCompression
       length = lz78dict[i][0].length
       @total += length
       ol = bin.bit_length if $info
-      if bin != 0 && rank = ngram.rank_mru([lz78dict[i-1][0],lz78dict[i][0]])
+      if bin != 0 && rank = ngram.rank_mru_i([lz78dict[i-1][0],lz78dict[i][0]])
         @num_ngram += length if $info
         bin <<= 1
         bin = delta(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
-        if rank = monogram.rank_mru([lz78dict[i][0]])
+        if rank = monogram.rank_mru_i([lz78dict[i][0]])
+          #rank = rank_diff(rank)
           @num_1gram += length if $info
           bin <<= 2
           bin += 2
@@ -206,6 +208,19 @@ class NgramCompression
     puts_rate(@length_raw / 8,bitl,'rawtxt size','byte') if $info
     puts_rate(@length_code / 8,bitl,'code size','byte') if $info
     bin
+  end
+
+  def rank_diff(rank)
+    diff = rank
+    @ngram_ary.each do |j|
+      if diff == j
+        diff = 1
+      elsif diff < j
+        diff+= 1
+      end
+    end
+    @ngram_ary << diff
+    diff
   end
 
   def puts_rate(x,total,prefix = 'hit', suffix = '')

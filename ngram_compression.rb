@@ -178,7 +178,6 @@ class NgramCompression
         @length_ngram += bin.bit_length - ol if $info
       else
         if rank = monogram.rank_mru_i([lz78dict[i][0]])
-          #rank = rank_diff(rank)
           @num_1gram += length if $info
           bin <<= 2
           bin += 2
@@ -209,19 +208,6 @@ class NgramCompression
     puts_rate(@length_raw / 8,bitl,'rawtxt size','byte') if $info
     puts_rate(@length_code / 8,bitl,'code size','byte') if $info
     bin
-  end
-
-  def rank_diff(rank)
-    diff = rank
-    @ngram_ary.each do |j|
-      if diff == j
-        diff = 1
-      elsif diff < j
-        diff+= 1
-      end
-    end
-    @ngram_ary << diff
-    diff
   end
 
   def puts_rate(x,total,prefix = 'hit', suffix = '')
@@ -260,7 +246,7 @@ class NgramCompression
           length -= 2
           (rank,length) = decode_omega(bin,length)
           word = monogram.next_word_i([],rank)
-          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word)
+          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word) if counter != 1
         else
           length -= 2
           (size,length) = decode_omega(bin,length)#サイズ情報
@@ -271,7 +257,7 @@ class NgramCompression
             word << char.chr
           end
           monogram.register_word([],word)
-          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word)
+          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word) if counter != 1
         end
       end
       words << [word,freq]

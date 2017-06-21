@@ -9,6 +9,37 @@ class NgramTable
     @rank_table = {}
   end
 
+  def next_word_i(pre_words,rank)
+    rank_table = pre_words.inject(@rank_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    rank_table["ranks"] = [] if rank_table["ranks"] == nil
+    ranks = rank_table["ranks"]
+    diff = rank
+    ranks.reverse_each do |j|
+      if diff == 1
+        diff = j
+      elsif j <= 0 || diff <= j
+        diff -= 1
+      end
+    end
+    ranks << rank
+    diff_rank = diff
+
+    encode_last_dic = pre_words.inject(@encode_add_table) {|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    word = encode_last_dic[diff_rank]
+    word = self.next_word(pre_words,diff_rank) if word == nil
+    word
+  end
+
+  def register_word(pre_words ,word)
+    encode_last_dic = pre_words.inject(@encode_add_table) {|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    count = encode_last_dic.count * -1
+    encode_last_dic[count] = word
+
+    rank_table = pre_words.inject(@rank_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    rank_table["ranks"] = [] if rank_table["ranks"] == nil
+    rank_table["ranks"] << count
+  end
+
   def rank_mru_i(keywords,update = true)
     notfound = false
     words = keywords[0,keywords.size-1]

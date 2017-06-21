@@ -162,10 +162,19 @@ class NgramCompression
       length = lz78dict[i][0].length
       @total += length
       ol = bin.bit_length if $info
+      if $indexcoding
+        bin = omega( bin ,lz78dict[i][1] + 1)
+      else
+        bin <<= i.bit_length
+        bin += lz78dict[i][1]
+      end
+      @length_code += bin.bit_length - ol if $info
+
+      ol = bin.bit_length if $info
       if bin != 0 && rank = ngram.rank_mru_i([lz78dict[i][1] == 0 ? lz78dict[i-1][0]: lz78dict[lz78dict[i][1] - 1][0],lz78dict[i][0]])
         @num_ngram += length if $info
         bin <<= 1
-        bin = delta(bin,rank)
+        bin = omega(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
         if rank = monogram.rank_mru_i([lz78dict[i][0]])
@@ -173,27 +182,19 @@ class NgramCompression
           @num_1gram += length if $info
           bin <<= 2
           bin += 2
-          bin = delta(bin,rank)
+          bin = omega(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
         else
           @num_raw += length if $info
           bin <<= 2
           bin += 3
-          bin = delta(bin,lz78dict[i][0].size + 1)
+          bin = omega(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
-            bin = delta(bin,char) #TODO:fix
+            bin = omega(bin,char) #TODO:fix
           end
           @length_raw += bin.bit_length - ol if $info
         end
       end
-      ol = bin.bit_length if $info
-      if $indexcoding
-        bin = delta( bin ,lz78dict[i][1] + 1)
-      else
-        bin <<= i.bit_length
-        bin += lz78dict[i][1]
-      end
-      @length_code += bin.bit_length - ol if $info
     end
 
     puts '--lz78 data--' if $info
@@ -240,15 +241,26 @@ class NgramCompression
     pre = ''
     length = bin.bit_length
     while(length > 0)
+      if $indexcoding
+        (freq,length) = decode_omega(bin,length)
+        freq -= 1
+      else
+        flength = length
+        length -= counter.bit_length
+        freq = (bin % (1 << flength)) / (1 << length)
+        counter+=1
+      end
+
       if(bin[length - 1] == 0)
         length -= 1
         (rank,length) = decode_omega(bin,length)
-        word = ngram.next_word([pre],rank)
+        word = ngram.next_word_i([freq == 0 ? pre : words[freq-1][0]],rank)
       else
         if(bin[length - 2] == 0)
           length -= 2
           (rank,length) = decode_omega(bin,length)
-          word = monogram.next_word([],rank)
+          word = monogram.next_word_i([],rank)
+          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word)
         else
           length -= 2
           (size,length) = decode_omega(bin,length)#サイズ情報
@@ -258,16 +270,9 @@ class NgramCompression
             (char,length) = decode_omega(bin,length)
             word << char.chr
           end
+          monogram.register_word([],word)
+          ngram.register_word([freq == 0 ? pre : words[freq-1][0]],word)
         end
-      end
-      if $indexcoding
-        (freq,length) = decode_omega(bin,length)
-        freq -= 1
-      else
-        flength = length
-        length -= counter.bit_length
-        freq = (bin % (1 << flength)) / (1 << length)
-        counter+=1
       end
       words << [word,freq]
       pre = word
@@ -342,7 +347,7 @@ ngram = NgramCompression.new
 if $info
   puts Benchmark.measure {
     bin = ngram.compress $targetfile #cantrbry/alice29.txt
-    #ngram.decode bin
+    ngram.decode bin
     puts Benchmark::CAPTION
   }
 else

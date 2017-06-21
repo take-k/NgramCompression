@@ -17,6 +17,7 @@ class NgramTable
     ranks.reverse_each do |j|
       if diff == 1
         diff = j
+        break if diff <= 0
       elsif j <= 0 || diff <= j
         diff -= 1
       end

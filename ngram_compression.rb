@@ -12,7 +12,8 @@ $naive = false
 $lz78 = false
 $indexcoding = false
 $monogramfile = 'n-grams/dic10000'
-
+$omega_encode = false
+$test = false
 config = {}
 opts = OptionParser.new
 opts.on("-d") {|v| config[:d] = true}
@@ -21,6 +22,8 @@ opts.on("-l") {|v| $lz78 = true}
 opts.on("-i") {|v| $info = true}
 opts.on("--indexcoding") {$indexcoding = true}
 opts.on("-1 value") {|v| $monogramfile = v}
+opts.on("-o") {|v| $omega_encode = true}
+opts.on("-t") {|v| $omega_encode = true; $test = true}
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -95,7 +98,8 @@ class NgramCompression
         first_words << word
       else
         words[i-(n-1)..i]
-        ranks << ngram.rank(words[i-(n-1)..i],true)
+        rank = ngram.rank(words[i-(n-1)..i],false)
+        ranks << rank if rank != nil
       end
     end
     [first_words,ranks]
@@ -158,12 +162,14 @@ class NgramCompression
     @total = 0
     ol = 0
     bin = 0
+    int_encode = $omega_encode ? method(:omega):method(:delta)
+
     (0..lz78dict.count-1).each do |i|
       length = lz78dict[i][0].length
       @total += length
       ol = bin.bit_length if $info
       if $indexcoding
-        bin = omega( bin ,lz78dict[i][1] + 1)
+        bin = int_encode( bin ,lz78dict[i][1] + 1)
       else
         bin <<= i.bit_length
         bin += lz78dict[i][1]
@@ -174,22 +180,22 @@ class NgramCompression
       if bin != 0 && rank = ngram.rank_mru_i([lz78dict[i][1] == 0 ? lz78dict[i-1][0]: lz78dict[lz78dict[i][1] - 1][0],lz78dict[i][0]])
         @num_ngram += length if $info
         bin <<= 1
-        bin = omega(bin,rank)
+        bin = int_encode.call(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
       else
         if rank = monogram.rank_mru_i([lz78dict[i][0]])
           @num_1gram += length if $info
           bin <<= 2
           bin += 2
-          bin = omega(bin,rank)
+          bin = int_encode.call(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
         else
           @num_raw += length if $info
           bin <<= 2
           bin += 3
-          bin = omega(bin,lz78dict[i][0].size + 1)
+          bin = int_encode.call(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
-            bin = omega(bin,char) #TODO:fix
+            bin = int_encode.call(bin,char) #TODO:fix
           end
           @length_raw += bin.bit_length - ol if $info
         end
@@ -287,7 +293,7 @@ class NgramCompression
     first_words,ranks = convert_to_ranks(words,ngram)
     ranks.each do |rank|
       #@ary.push(rank)
-      bin = omega(bin,rank)
+      bin = delta(bin,rank)
     end
     puts 'naive'
     ngram.print_rate
@@ -333,7 +339,7 @@ ngram = NgramCompression.new
 if $info
   puts Benchmark.measure {
     bin = ngram.compress $targetfile #cantrbry/alice29.txt
-    ngram.decode bin
+    ngram.decode(bin) if $test
     puts Benchmark::CAPTION
   }
 else

@@ -26,7 +26,9 @@ opts.on("--indexcoding") {$indexcoding = true}
 opts.on("-1 value") {|v| $monogramfile = v}
 opts.on("-o") {|v| $omega_encode = true}
 opts.on("-t") {|v| $omega_encode = true; $test = true}
-opts.on("--dist[=value]") { |v| $show_distribution = true , $distribution_file = v}
+opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = v}
+opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
+opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 
 opts.parse!(ARGV)
 
@@ -62,8 +64,6 @@ class NgramCompression
       ngram = NgramTableFromFile.new($ngramfile)
       puts "ngramfile: #{$ngramfile}" if $info
     end
-
-    @ary = []
 
     #圧縮
     if $naive
@@ -122,13 +122,13 @@ class NgramCompression
         words_hash[ary] = counter # {[a]=>1,[a,b]=>2}
 
         results << [word,words_hash[ary[0,ary.count-1]]]
-        @ary << [word,words_hash[ary[0,ary.count-1]]]
         ary = []
       elsif i == words.count-1 #最後の文字が出力されていない場合
         results << ['',words_hash[ary]]
-        @ary << ['',words_hash[ary]]
       end
     end
+
+    output(results.to_s,$lz78_file) if $show_lz78
 
     monogram = NgramTableFromFile.new($monogramfile)
 
@@ -136,12 +136,21 @@ class NgramCompression
 
     puts '--hit rate--' if $info
     ngram.print_rate if $info
-    #ngram.print_add_table
 
     monogram.print_rate if $info
     monogram.finish
 
     bin
+  end
+
+  def output(str,file = nil)
+    if file
+      File.open(file,'wb') do |f|
+        f.write(str)
+      end
+    else
+      puts str
+    end
   end
 
   def lz78convert_2gram(lz78dict,ngram)
@@ -173,6 +182,9 @@ class NgramCompression
     dist_raw = []
     dist_index = []
 
+    ranks_ngram = []
+    ranks_1gram = []
+
     (0..lz78dict.count-1).each do |i|
       length = lz78dict[i][0].length
       @total += length
@@ -193,6 +205,7 @@ class NgramCompression
         bin = int_encode.call(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
         count_collection(dist_ngram,rank) if $show_distribution
+        ranks_ngram << rank if $show_ranks
       else
         if rank = monogram.rank_mru_i([lz78dict[i][0]])
           @num_1gram += length if $info
@@ -201,6 +214,7 @@ class NgramCompression
           bin = int_encode.call(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
           count_collection(dist_1gram,rank) if $show_distribution
+          ranks_1gram << rank if $show_ranks
         else
           @num_raw += length if $info
           bin <<= 2
@@ -228,6 +242,7 @@ class NgramCompression
     puts_rate(@length_code / 8,bitl,'code size','byte') if $info
 
     puts_distribution([dist_ngram,dist_1gram,dist_raw,dist_index ]) if $show_distribution
+    output("#{ranks_ngram.to_s}\n#{ranks_1gram.to_s}", $ranks_file) if $show_ranks
     bin
   end
 
@@ -237,7 +252,7 @@ class NgramCompression
   end
 
   def puts_distribution(dists , tag = '--distributions--' ,separator = "\n")
-    puts tag if distribution_file == nil
+    puts tag if $distribution_file == nil
     str = ''
     max_i = dists.reduce(0) { |max,d| max < d.count ? d.count : max}
     max_i = 10000 if max_i > 10000
@@ -246,16 +261,10 @@ class NgramCompression
         str << ',' if j!= 0
         dist[i] == nil ? str << '0':str << dist[i].to_s
       end
-      str << separator
+      str << separator if i != max_i
     end
 
-    if $distribution_file == nil
-      print str
-    else
-      File.open($distribution_file, 'wb') do |f|
-        f.write(str)
-      end
-    end
+    output(str,$distribution_file)
   end
 
   def puts_rate(x,total,prefix = 'hit', suffix = '')

@@ -14,6 +14,8 @@ $indexcoding = false
 $monogramfile = 'n-grams/dic10000'
 $omega_encode = false
 $test = false
+$show_distribution = false
+
 config = {}
 opts = OptionParser.new
 opts.on("-d") {|v| config[:d] = true}
@@ -24,6 +26,8 @@ opts.on("--indexcoding") {$indexcoding = true}
 opts.on("-1 value") {|v| $monogramfile = v}
 opts.on("-o") {|v| $omega_encode = true}
 opts.on("-t") {|v| $omega_encode = true; $test = true}
+opts.on("--dist[=value]") { |v| $show_distribution = true , $distribution_file = v}
+
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -164,6 +168,11 @@ class NgramCompression
     bin = 0
     int_encode = $omega_encode ? method(:omega):method(:delta)
 
+    dist_ngram = []
+    dist_1gram = []
+    dist_raw = []
+    dist_index = []
+
     (0..lz78dict.count-1).each do |i|
       length = lz78dict[i][0].length
       @total += length
@@ -175,6 +184,7 @@ class NgramCompression
         bin += lz78dict[i][1]
       end
       @length_code += bin.bit_length - ol if $info
+      count_collection(dist_index,lz78dict[i][1]) if $show_distribution
 
       ol = bin.bit_length if $info
       if bin != 0 && rank = ngram.rank_mru_i([lz78dict[i][1] == 0 ? lz78dict[i-1][0]: lz78dict[lz78dict[i][1] - 1][0],lz78dict[i][0]])
@@ -182,6 +192,7 @@ class NgramCompression
         bin <<= 1
         bin = int_encode.call(bin,rank)
         @length_ngram += bin.bit_length - ol if $info
+        count_collection(dist_ngram,rank) if $show_distribution
       else
         if rank = monogram.rank_mru_i([lz78dict[i][0]])
           @num_1gram += length if $info
@@ -189,6 +200,7 @@ class NgramCompression
           bin += 2
           bin = int_encode.call(bin,rank)
           @length_1gram += bin.bit_length - ol if $info
+          count_collection(dist_1gram,rank) if $show_distribution
         else
           @num_raw += length if $info
           bin <<= 2
@@ -196,6 +208,7 @@ class NgramCompression
           bin = int_encode.call(bin,lz78dict[i][0].size + 1)
           lz78dict[i][0].unpack("C*").each do |char|
             bin = int_encode.call(bin,char) #TODO:fix
+            count_collection(dist_raw,char) if $show_distribution
           end
           @length_raw += bin.bit_length - ol if $info
         end
@@ -213,7 +226,36 @@ class NgramCompression
     puts_rate(@length_1gram / 8,bitl,'1gram size','byte') if $info
     puts_rate(@length_raw / 8,bitl,'rawtxt size','byte') if $info
     puts_rate(@length_code / 8,bitl,'code size','byte') if $info
+
+    puts_distribution([dist_ngram,dist_1gram,dist_raw,dist_index ]) if $show_distribution
     bin
+  end
+
+  def count_collection(collection,x)
+    collection[x] = 0 if collection[x] == nil
+    collection[x] += 1
+  end
+
+  def puts_distribution(dists , tag = '--distributions--' ,separator = "\n")
+    puts tag if distribution_file == nil
+    str = ''
+    max_i = dists.reduce(0) { |max,d| max < d.count ? d.count : max}
+    max_i = 10000 if max_i > 10000
+    (0..max_i).each do |i|
+      dists.each_with_index do |dist,j|
+        str << ',' if j!= 0
+        dist[i] == nil ? str << '0':str << dist[i].to_s
+      end
+      str << separator
+    end
+
+    if $distribution_file == nil
+      print str
+    else
+      File.open($distribution_file, 'wb') do |f|
+        f.write(str)
+      end
+    end
   end
 
   def puts_rate(x,total,prefix = 'hit', suffix = '')

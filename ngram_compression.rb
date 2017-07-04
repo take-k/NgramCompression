@@ -251,17 +251,26 @@ class NgramCompression
     collection[x] += 1
   end
 
-  def puts_distribution(dists , tag = '--distributions--' ,separator = "\n")
+  def puts_distribution(dists , tag = '--distributions--' ,separator = "\n", sparse = false, with_index = true, nilstr = '')
     puts tag if $distribution_file == nil
     str = ''
     max_i = dists.reduce(0) { |max,d| max < d.count ? d.count : max}
-    max_i = 10000 if max_i > 10000
+    max_i = 1000000 if max_i > 1000000
+
+    #stochastic
+    total = dists.map do |d|
+      d.reduce(0) {|sum,x| sum += (x || 0)}
+    end
+
     (0..max_i).each do |i|
-      dists.each_with_index do |dist,j|
-        str << ',' if j!= 0
-        dist[i] == nil ? str << '0':str << dist[i].to_s
+      if sparse || dists.any? { |dist| dist[i]}
+        str << "#{i.to_s}," if with_index
+        dists.each_with_index do |dist,j|
+          str << ',' if j!= 0
+          dist[i] == nil ? str << nilstr:str << (dist[i].to_f / total[j]).to_s
+        end
+        str << separator if i != max_i
       end
-      str << separator if i != max_i
     end
 
     output(str,$distribution_file)

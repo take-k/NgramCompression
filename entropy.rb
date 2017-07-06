@@ -3,19 +3,19 @@ require 'benchmark'
 include Benchmark
 
 opts = OptionParser.new
-opts.on("-coca") {|v| $coca = true}
+opts.on("--coca") {|v| $coca = true}
 
 opts.parse!(ARGV)
 
 
 $in = ARGV[0]
-$out = ARGV[1]
-$threshold = ARGV[2].to_i
+$out = ARGV[2]
+$n = ARGV[1].to_i
 
 #$stdin = open(input, "rb")
 $stdout = open($out, "wb") if ARGV[1]
 
-def coca2gm
+def calc_entropy
   entropies = {} # entropy * conditional_total_freq
   conditions = {}
   tmp = nil
@@ -23,10 +23,16 @@ def coca2gm
   condition_total_freq = 0
   word1 = ''
   open($in,'rb').each_line do |line|
-    freqstr,word1,word2 = line.split("\t")
-    freq = freqstr.to_i
+    if $coca
+      freq_string,word1,word2 = line.split("\t")
+      freq = freq_string.to_i
+    else
+      str,freq_string = line.split("\t")
+      freq = freq_string.to_i
+      word1,word2 = str.split
+    end
     if word1 != tmp
-      entropies[word1] = calc_entropy( conditions,condition_total_freq)
+      entropies[word1] = calc_entropy_by_freq( conditions,condition_total_freq)
       conditions = {}
       tmp = word1
       condition_total_freq = 0
@@ -35,13 +41,13 @@ def coca2gm
     condition_total_freq += freq
     total_freq += freq
   end
-  entropies[word1] = calc_entropy( conditions,condition_total_freq)
+  entropies[word1] = calc_entropy_by_freq( conditions,condition_total_freq)
 
   puts (entropies.reduce(0.0) {|sum , (k,v)| sum += v} / total_freq) * -1
 end
 
-def calc_entropy(conditions,condition_total_freq)
-  entropy = conditions.reduce(0.0) {|sum , (k,freq)| p = (freq.to_f / (condition_total_freq).to_f); sum += (freq.to_f * Math.log2(p))}
+def calc_entropy_by_freq(freqs,total_freq)
+  entropy = freqs.reduce(0.0) {|sum , (k,freq)| p = (freq.to_f / (total_freq).to_f); sum += (freq.to_f * Math.log2(p))}
   entropy
 end
 
@@ -59,33 +65,4 @@ def web1gm
   dic[0..upper].each_with_index { |(k, v),i| puts "#{k}\t#{i+1}" }
 end
 
-def web2gm
-  freq_threadshold = $threshold
-  dic = {}
-  tmp = ''
-  open($in,'rb').each_line do |line|
-    str,freqstr = line.split("\t")
-    freq = freqstr.to_i
-    if $threshold <= freq
-      word1,word2 = str.split
-      if word1 == tmp
-        dic[word2] = freq
-      else
-        dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
-        dic.each_with_index { |(k, v),i| puts "#{tmp}\t#{k}\t#{i+1}" }
-        dic = {}
-        dic[word2] = freq
-        tmp = word1
-      end
-    end
-  end
-
-  dic = dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
-  dic.each_with_index { |(k, v),i| puts "#{tmp}\t#{k}\t#{i+1}" }
-  #dic.each do |word1,word2_dic|
-  #  ranks = word2_dic.sort{ |(k1,v1),(k2,v2)| v2 <=> v1}
-  #  ranks.each_with_index { |(k, v),i| puts "#{word1}\t#{k}\t#{i+1}" }
-  #end
-end
-
-coca2gm
+calc_entropy

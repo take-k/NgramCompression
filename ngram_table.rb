@@ -182,7 +182,7 @@ end
 
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
-  def initialize(file = 'n-grams/dic1000',encode_table = {},decode_table = {},n = nil)
+  def initialize(file = 'n-grams/dic1000',n = nil,encode_table = {},decode_table = {})
     super()
     @n = n
     @encode_table = encode_table

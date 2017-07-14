@@ -67,8 +67,10 @@ class NgramCompression
     #圧縮
     if $naive
       bin = naive_compress(words,ngram)
-    else
+    elsif $lz78
       bin = lz78_compress(words,ngram)
+    else
+      bin = ppm_compress(words)
     end
     puts "#{$targetfile} :#{(str.length).to_s_comma} -> #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
     bin
@@ -89,7 +91,20 @@ class NgramCompression
 
     ngram.finish
   end
-
+  #=====
+  def ppm_compress(words)
+    bin = 0
+    file_names = ["test1gm","test2gm","test3gm","test4gm","test5gm"]
+    max_n = file_names.size
+    ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(name,i+1)}
+    words.each_with_index do |word,i|
+      ngrams.reverse_each do |ngram|
+        freq = ngram.rank(words[(i - (ngram.n - 1))..i],true)
+        bin = range_code(bin,freq)
+      end
+    end
+    bin
+  end
   ###========================================================
   def convert_to_ranks(words,ngram)#最初の文字群とrankの配列
     n = ngram.n

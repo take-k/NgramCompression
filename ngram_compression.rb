@@ -56,7 +56,6 @@ class NgramCompression
     #words.delete("")
 
     #ngramセットアップ
-    @n = $n
     if $is_db
       ngram = NgramTableFromPg.new($dbname)
       puts "tablename: #{$dbname}" if $info
@@ -92,9 +91,8 @@ class NgramCompression
   end
 
   ###========================================================
-
   def convert_to_ranks(words,ngram)#最初の文字群とrankの配列
-    n = @n
+    n = ngram.n
     first_words = []
     ranks = []
     words.each_with_index do |word,i|

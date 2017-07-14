@@ -2,11 +2,12 @@ require 'csv'
 require 'pg'
 
 class NgramTable
-  attr_reader :add_table_str
+  attr_reader :add_table_str,:n
 
   def initialize
     @encode_add_table = {}
     @rank_table = {}
+    @n = 1
   end
 
   def next_word_i(pre_words,rank)
@@ -107,8 +108,9 @@ class NgramTable
 end
 
 class NgramTableFromPg < NgramTable
-  def initialize(db_name='coca2gram')
+  def initialize(db_name='coca2gram',n = 2)
     super()
+    @n = n
     @db_name = db_name
     reset_count
     @connection = PG::connect(dbname: "ngram")
@@ -180,8 +182,9 @@ end
 
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
-  def initialize(file = 'n-grams/dic1000',encode_table = {},decode_table = {})
+  def initialize(file = 'n-grams/dic1000',encode_table = {},decode_table = {},n = nil)
     super()
+    @n = n
     @encode_table = encode_table
     @decode_table = decode_table
     reset_count
@@ -192,6 +195,7 @@ class NgramTableFromFile < NgramTable
       words = row[0,row.size-1] #rank以外を取り出す
       rank = row[-1].to_i
       last = words.pop
+      @n = words.size unless @n
       encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
       encode_last_dic[last] = rank
       decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}

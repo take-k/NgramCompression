@@ -182,25 +182,27 @@ end
 
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
-  def initialize(file = 'n-grams/dic1000',n = nil,encode_table = {},decode_table = {})
+  def initialize(file = nil,n = nil,encode_table = {},decode_table = {})
     super()
     @n = n
     @encode_table = encode_table
     @decode_table = decode_table
     reset_count
     @count = 0
-    f = open(file,'rb')
-    while (input = f.gets) do
-      row = input.split("\t")
-      words = row[0,row.size-1] #rank以外を取り出す
-      rank = row[-1].to_i
-      last = words.pop
-      @n = words.size unless @n
-      encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-      encode_last_dic[last] = rank
-      decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-      decode_last_dic[rank] = last
-      @count += 1
+    if file
+      f = open(file,'rb')
+      while (input = f.gets) do
+        row = input.split("\t")
+        words = row[0,row.size-1] #rank以外を取り出す
+        rank = row[-1].to_i
+        last = words.pop
+        @n = words.size unless @n
+        encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+        encode_last_dic[last] = rank
+        decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+        decode_last_dic[rank] = last
+        @count += 1
+      end
     end
   end
 
@@ -234,7 +236,7 @@ class NgramTableFromFile < NgramTable
     pre_words.inject(@decode_table) { |d, key| d[key] }[rank]
   end
 
-  def freq(rc,bin,keywords,update = false)
+  def freq(rc,exclusion,bin,keywords,update = false)
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}

@@ -1,3 +1,4 @@
+require 'set'
 require 'optparse'
 require 'benchmark'
 require './encode.rb'
@@ -96,21 +97,38 @@ class NgramCompression
     bin = 0
     file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
     max_n = file_names.size
-    ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(name,i+1)}
+    #ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(nil,i+1)}
+    ngrams = (1..5).map {|i| NgramTableFromFile.new(nil,i)}
     rc = RangeCoder.new
+    exclusion = Set.new
+
+    cngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
+    dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
+    dic[''] = 1
+    cngrams << NgramTableFromFile.new(nil,1,dic)
+    crc = RangeCoder.new
+    cexclusion = Set.new
+
     words.each_with_index do |word,i|
+      exclusion.clear
       hit = ngrams.reverse_each.any? do |ngram|
-        bin,exist = ngram.freq(rc,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        exclusion << word
         exist
       end
       if !hit
-        bin = omega(bin,word.size + 1)
-        word.unpack("C*").each do |char|
-          bin = omega(bin,char) #TODO:fix
+        word.unpack("C*").each_with_index do |char,i|
+          cexclusion.clear
+          cngrams.any? do |cngram|
+            bin,exist = cngram.freq(crc,cexclusion,bin,word.chars[(i - (cngram.n - 1))..i],true) if i >= cngram.n - 1
+            cexclusion << char
+            exist
+          end
         end
       end
     end
     bin = rc.finish(bin)
+    bin = crc.finish(bin)
     bin
   end
   ###========================================================

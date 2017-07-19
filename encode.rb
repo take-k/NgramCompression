@@ -52,3 +52,43 @@ def d_omega(number)
   end
   ary
 end
+
+class RangeCoder
+  attr_accessor :low,:range
+  MAX_RANGE_LENGTH = 32
+  MIN_RANGE_LENGTH = 24
+  SHIFT = 24  #?
+  HEAD = MAX_RANGE_LENGTH - SHIFT
+  MAX_RANGE = (1 << MAX_RANGE_LENGTH) - 1
+  MIN_RANGE = 1 << MIN_RANGE_LENGTH
+
+  MAX_MASK = MAX_RANGE
+  SHIFT_MASK = MAX_RANGE - ((1 << SHIFT) - 1)
+
+  def initialize
+    @low = 0
+    @range = MAX_RANGE
+  end
+
+  def encode_shift(bin)
+    while @low & MAX_MASK == (@low + @range) & MAX_MASK
+      bin <<= HEAD
+      bin += (@low >> SHIFT)
+      @low = (@low << HEAD) & MAX_MASK
+      @range <<= HEAD
+    end
+    while @range < MIN_RANGE
+      @range = (MIN_RANGE - (@low & (MIN_RANGE - 1))) << HEAD
+      bin <<= HEAD
+      bin += (@low >> SHIFT)
+      @low = (@low << HEAD) & MAX_MASK
+    end
+    bin
+  end
+
+  def finish(bin)
+    bin <<= MAX_RANGE_LENGTH
+    bin += @low
+    bin
+  end
+end

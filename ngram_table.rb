@@ -234,48 +234,32 @@ class NgramTableFromFile < NgramTable
     pre_words.inject(@decode_table) { |d, key| d[key] }[rank]
   end
 
-  MAX_RANGE_LENGTH = 32
-  MIN_RANGE_LENGTH = 16
-  SHIFT = 24  #?
-  HEAD = MAX_RANGE_LENGTH - SHIFT
-  MAX_RANGE = (1 << MAX_RANGE_LENGTH) - 1
-  MIN_RANGE = 1 << MIN_RANGE_LENGTH
-
-  MAX_MASK = MAX_RANGE
-  SHIFT_MASK = MAX_RANGE - ((1 << SHIFT) - 1)
-
-  def freq(bin,keywords,update = false)
+  def freq(rc,bin,keywords,update = false)
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     total = 1
     count_sum = 0
-    exist = encode_last_dic.reduce(false) do |exist, (k, v)|
-      exist = exist || (k == last)
+    exist = (encode_last_dic[last] != nil)
+    encode_last_dic.reduce(false) do |flag, (k, v)|
+      flag = flag || (k == last)
       total += v
-      count_sum += v unless exist
+      count_sum += v unless flag
     end
 
-    encode_last_dic[last] = 1 if update && !exist
-
-    @low += @range * count_sum / total
-    @range = @range * f / total
-
-    while @low & MAX_MASK == (@low + @RANGE) & MAX_MASK
-      bin <<= HEAD
-      bin += (@low >> SHIFT)
-      @low = (@low << HEAD) & MAX_MASK
-      @range <<= HEAD
+    if encode_last_dic[last] == nil
+      encode_last_dic[last] = 1 if update
+      f = 1
+    else
+      f = encode_last_dic[last]
+      encode_last_dic[last] += 1 if update
     end
-    while @range < MIN_RANGE
-      @range = (MIN_RANGE - (@low & (MIN_RANGE - 1))) << HEAD
-      bin <<= HEAD
-      bin += (@low >> SHIFT)
-      @low = (@low << HEAD) & MAX_MASK
-    end
-    bin
+
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    bin = rc.encode_shift(bin)
+    [bin,exist]
   end
-
 end
 
 

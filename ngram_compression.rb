@@ -94,15 +94,23 @@ class NgramCompression
   #=====
   def ppm_compress(words)
     bin = 0
-    file_names = ["test1gm","test2gm","test3gm","test4gm","test5gm"]
+    file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
     max_n = file_names.size
     ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(name,i+1)}
+    rc = RangeCoder.new
     words.each_with_index do |word,i|
-      ngrams.reverse_each do |ngram|
-        freq = ngram.rank(words[(i - (ngram.n - 1))..i],true)
-        bin = range_code(bin,freq)
+      hit = ngrams.reverse_each.any? do |ngram|
+        bin,exist = ngram.freq(rc,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        exist
+      end
+      if !hit
+        bin = omega(bin,word.size + 1)
+        word.unpack("C*").each do |char|
+          bin = omega(bin,char) #TODO:fix
+        end
       end
     end
+    bin = rc.finish(bin)
     bin
   end
   ###========================================================

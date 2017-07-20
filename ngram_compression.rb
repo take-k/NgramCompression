@@ -141,6 +141,41 @@ class NgramCompression
     bin = char_rc.finish(bin)
     bin
   end
+
+  def ppm_decompress(bin)
+    max_n = 5
+    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
+    rc = RangeCoder.new
+    exclusion = Set.new
+
+    max_char_n = 5
+    char_ngrams = max_char_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
+    dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
+    dic[''] = 1
+    char_ngrams << NgramTableFromFile.new(nil,1,dic)
+    char_rc = RangeCoder.new
+    char_exclusion = Set.new
+
+    length = bin.bit_length - 1
+    rc.load_code(bin,length)
+    while(length > 0)
+      exclusion.clear
+      hit = ngrams.any? do |ngram|
+        bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        exist
+      end
+      if !hit
+        word.unpack("C*").each_with_index do |char,i|
+          char_exclusion.clear
+          char_ngrams.any? do |char_ngram|
+            bin,exist = char_ngram.freq(char_rc,char_exclusion,bin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
+            exist
+          end
+        end
+      end
+    end
+  end
+
   ###========================================================
   def convert_to_ranks(words,ngram)#最初の文字群とrankの配列
     n = ngram.n

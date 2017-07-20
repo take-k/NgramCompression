@@ -265,6 +265,41 @@ class NgramTableFromFile < NgramTable
     bin = rc.encode_shift(bin)
     [bin,hit]
   end
+
+  def symbol(rc,exclusion,bin,pre_words,update = false)
+    encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    total = 1
+    count_sum = 0
+    hit = false
+
+    char = ''
+    encode_last_dic.each do |k, v|
+      hit = hit || (k == last)
+      if !exclusion.include?(k)
+        total += v
+        if !hit
+          count_sum += v
+          hit = true if @code < (rc.range * count_sum / total)
+          char = k
+        end
+        exclusion << k
+      end
+    end
+
+    if hit
+      f = encode_last_dic[char]
+      encode_last_dic[char] += 1 if update
+    else
+      encode_last_dic[char] = 1 if update #todo ここ
+      f = 1
+    end
+
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    rc.code = 0#todo ここ
+    bin = rc.encode_shift(bin) #todo ここ
+    [bin,hit]
+  end
 end
 
 

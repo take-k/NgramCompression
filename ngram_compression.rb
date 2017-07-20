@@ -113,7 +113,6 @@ class NgramCompression
       exclusion.clear
       hit = ngrams.reverse_each.any? do |ngram|
         bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
-        exclusion << word
         exist
       end
       if !hit
@@ -121,7 +120,6 @@ class NgramCompression
           cexclusion.clear
           cngrams.any? do |cngram|
             bin,exist = cngram.freq(crc,cexclusion,bin,word.chars[(i - (cngram.n - 1))..i],true) if i >= cngram.n - 1
-            cexclusion << char
             exist
           end
         end

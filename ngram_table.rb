@@ -245,8 +245,11 @@ class NgramTableFromFile < NgramTable
     exist = (encode_last_dic[last] != nil)
     encode_last_dic.reduce(false) do |flag, (k, v)|
       flag = flag || (k == last)
-      total += v
-      count_sum += v unless flag
+      if !exclusion.include?(k)
+        total += v
+        count_sum += v unless flag
+        exclusion << k
+      end
     end
 
     if encode_last_dic[last] == nil

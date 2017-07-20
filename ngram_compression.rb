@@ -161,14 +161,14 @@ class NgramCompression
     while(length > 0)
       exclusion.clear
       hit = ngrams.any? do |ngram|
-        bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        bin,exist = ngram.freq(rc,exclusion,bin,length,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
         exist
       end
       if !hit
         word.unpack("C*").each_with_index do |char,i|
           char_exclusion.clear
           char_ngrams.any? do |char_ngram|
-            bin,exist = char_ngram.freq(char_rc,char_exclusion,bin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
+            bin,exist = char_ngram.freq(char_rc,char_exclusion,bin,length,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
             exist
           end
         end

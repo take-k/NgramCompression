@@ -266,7 +266,7 @@ class NgramTableFromFile < NgramTable
     [bin,hit]
   end
 
-  def symbol(rc,exclusion,bin,pre_words,update = false)
+  def symbol(rc,exclusion,bin,length,pre_words,update = false)
     encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     total = 1
     count_sum = 0
@@ -286,19 +286,16 @@ class NgramTableFromFile < NgramTable
       end
     end
 
-    if hit
-      f = encode_last_dic[char]
-      encode_last_dic[char] += 1 if update
-    else
-      encode_last_dic[char] = 1 if update #todo ここ
-      f = 1
-    end
+    f = encode_last_dic[char] ? encode_last_dic[char] : 1
 
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
-    rc.code = 0#todo ここ
-    bin = rc.encode_shift(bin) #todo ここ
-    [bin,hit]
+    length = rc.decode_shift(bin,length)
+    [length,hit]
+  end
+
+  def update_freq()
+
   end
 end
 

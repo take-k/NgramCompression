@@ -84,7 +84,14 @@ class NgramCompression
       ngram = NgramTableFromFile.new($ngramfile)
     end
 
-    str = lz78_decompress(bin,ngram)
+    #圧縮
+    if $naive
+      bin = naive_decompress(words,ngram)
+    elsif $lz78
+      bin = lz78_decompress(bin,ngram)
+    else
+      bin = ppm_decompress(bin)
+    end
 
     File.open(file, 'wb') do |f|
       f.write(str)
@@ -92,41 +99,46 @@ class NgramCompression
 
     ngram.finish
   end
-  #=====
+
+  #=======================================================================
   def ppm_compress(words)
-    bin = 0
-    file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
-    max_n = file_names.size
+    bin = 1 #head
+
+    #file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
     #ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(nil,i+1)}
-    ngrams = (1..5).map {|i| NgramTableFromFile.new(nil,i)}
+    #max_n = file_names.size
+
+    max_n = 5
+    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
     rc = RangeCoder.new
     exclusion = Set.new
 
-    cngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
+    max_char_n = 5
+    char_ngrams = max_char_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
     dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
     dic[''] = 1
-    cngrams << NgramTableFromFile.new(nil,1,dic)
-    crc = RangeCoder.new
-    cexclusion = Set.new
+    char_ngrams << NgramTableFromFile.new(nil,1,dic)
+    char_rc = RangeCoder.new
+    char_exclusion = Set.new
 
     words.each_with_index do |word,i|
       exclusion.clear
-      hit = ngrams.reverse_each.any? do |ngram|
+      hit = ngrams.any? do |ngram|
         bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
         exist
       end
       if !hit
         word.unpack("C*").each_with_index do |char,i|
-          cexclusion.clear
-          cngrams.any? do |cngram|
-            bin,exist = cngram.freq(crc,cexclusion,bin,word.chars[(i - (cngram.n - 1))..i],true) if i >= cngram.n - 1
+          char_exclusion.clear
+          char_ngrams.any? do |char_ngram|
+            bin,exist = char_ngram.freq(char_rc,char_exclusion,bin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
             exist
           end
         end
       end
     end
     bin = rc.finish(bin)
-    bin = crc.finish(bin)
+    bin = char_rc.finish(bin)
     bin
   end
   ###========================================================

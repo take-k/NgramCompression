@@ -242,28 +242,28 @@ class NgramTableFromFile < NgramTable
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     total = 1
     count_sum = 0
-    exist = (encode_last_dic[last] != nil)
-    encode_last_dic.reduce(false) do |flag, (k, v)|
-      flag = flag || (k == last)
+    hit = false
+    encode_last_dic.each do |k, v|
+      hit = hit || (k == last)
       if !exclusion.include?(k)
         total += v
-        count_sum += v unless flag
+        count_sum += v unless hit
         exclusion << k
       end
     end
 
-    if encode_last_dic[last] == nil
-      encode_last_dic[last] = 1 if update
-      f = 1
-    else
+    if hit
       f = encode_last_dic[last]
       encode_last_dic[last] += 1 if update
+    else
+      encode_last_dic[last] = 1 if update
+      f = 1
     end
 
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     bin = rc.encode_shift(bin)
-    [bin,exist]
+    [bin,hit]
   end
 end
 

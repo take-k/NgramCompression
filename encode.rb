@@ -65,7 +65,7 @@ class RangeCoder
   MAX_MASK = MAX_RANGE
   SHIFT_MASK = MAX_RANGE - ((1 << SHIFT) - 1)
 
-  def load_code(bin,start,length)
+  def load_code(bin,start,length = MAX_RANGE_LENGTH)
     (bin >> (start - length)) & ((1 << length) - 1 ) #start+1
   end
 
@@ -90,7 +90,7 @@ class RangeCoder
     while @range < MIN_RANGE
       @low = (@low << HEAD) & MAX_MASK
       @range <<= HEAD
-      @low = (@low << 8) + load_code(bin,length,HEAD)
+      @code = (@code << 8) + load_code(bin,length,HEAD)
       length -= HEAD
     end
     length

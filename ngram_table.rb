@@ -294,8 +294,10 @@ class NgramTableFromFile < NgramTable
     [length,hit]
   end
 
-  def update_freq()
-
+  def update_freq(pre,symbol)
+    encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    encode_last_dic[symbol] = 0 unless encode_last_dic[symbol]
+    encode_last_dic[symbol] += 1
   end
 end
 

@@ -65,8 +65,8 @@ class RangeCoder
   MAX_MASK = MAX_RANGE
   SHIFT_MASK = MAX_RANGE - ((1 << SHIFT) - 1)
 
-  def load_code(bin,start)
-    (bin >> (start - MAX_RANGE_LENGTH)) & MAX_MASK #start+1
+  def load_code(bin,start,length)
+    (bin >> (start - length)) & ((1 << length) - 1 ) #start+1
   end
 
   def initialize
@@ -76,6 +76,27 @@ class RangeCoder
   end
 
   def encode_shift(bin)
+    bin += 1 if @low >= MAX_RANGE #up digit
+    while @range < MIN_RANGE
+      bin <<= HEAD
+      bin += (@low >> SHIFT)
+      @low = (@low << HEAD) & MAX_MASK
+      @range <<= HEAD
+    end
+    bin
+  end
+
+  def decode_shift(bin,length)
+    while @range < MIN_RANGE
+      @low = (@low << HEAD) & MAX_MASK
+      @range <<= HEAD
+      @low = (@low << 8) + load_code(bin,length,HEAD)
+      length -= HEAD
+    end
+    length
+  end
+
+  def encode_shift_no_carry(bin)
     while @low & SHIFT_MASK == (@low + @range) & SHIFT_MASK
       bin <<= HEAD
       bin += (@low >> SHIFT)
@@ -91,22 +112,23 @@ class RangeCoder
     bin
   end
 
-  def decode_shift(bin,length)
+  def decode_shift_no_carry(bin,length)
     while @low & SHIFT_MASK == (@low + @range) & SHIFT_MASK
       length -= HEAD
-      @code = load_code(bin,length)
+      @code = load_code(bin,length,MAX_RANGE_LENGTH)
       @low = (@low << HEAD) & MAX_MASK
       @range <<= HEAD
     end
     while @range < MIN_RANGE
       @range = (MIN_RANGE - (@low & (MIN_RANGE - 1))) << HEAD
       length -= HEAD
-      @code = load_code(bin,length)
+      @code = load_code(bin,length,MAX_RANGE_LENGTH)
       @low = (@low << HEAD) & MAX_MASK
     end
   end
 
   def finish(bin)
+    bin += 1 if @low >= MAX_RANGE
     bin <<= MAX_RANGE_LENGTH
     bin += @low
     bin

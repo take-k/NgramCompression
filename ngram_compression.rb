@@ -135,10 +135,10 @@ class NgramCompression
             exist
           end
         end
+        bin = char_rc.finish(bin)
       end
     end
     bin = rc.finish(bin)
-    bin = char_rc.finish(bin)
     bin
   end
 
@@ -157,7 +157,8 @@ class NgramCompression
     char_exclusion = Set.new
 
     length = bin.bit_length - 1
-    rc.load_code(bin,length)
+    length = rc.load_code(bin,length)
+
     pre_words = []
 
     words = []
@@ -166,37 +167,42 @@ class NgramCompression
       exclusion.clear
       esc_ngrams = []
       word = ngrams.reduce(nil) do |symbol, ngram|
-        symbol = ngram.symbol(rc,exclusion,bin,length,pre_words[max_n - ngram.n,ngram.n - 1],true) if i >= ngram.n - 1
-        esc_ngrams << ngram
-        break symbol if symbol
+        if i >= ngram.n - 1
+          symbol,length = ngram.symbol(rc,exclusion,bin,length,pre_words[pre_words.size - ngram.n + 1,ngram.n - 1],true)
+          esc_ngrams << ngram
+          break symbol if symbol
+        end
       end
 
       if word == nil
         chars = []
-        i = 0
+        j = 0
+        length = char_rc.load_code(bin,length)
         while true
           char_exclusion.clear
           pre_chars = []
           esc_char_ngrams = []
           char = char_ngrams.reduce(nil) do |symbol,char_ngram|
-            symbol = char_ngram.symbol(char_rc,char_exclusion,bin,length,pre_chars[max_char_n - char_ngram.n,char_ngram.n - 1],true) if i >= char_ngram.n - 1
-            esc_char_ngrams << symbol
-            break symbol if symbol
+            if j >= char_ngram.n - 1
+              symbol,length = char_ngram.symbol(char_rc,char_exclusion,bin,length,pre_chars[pre_chars.size - char_ngram.n+ 1,char_ngram.n - 1],true)
+              esc_char_ngrams << char_ngram
+              break symbol if symbol
+            end
           end
           esc_char_ngrams.each do |char_ngram|
-            char_ngram.update_freq(pre_chars[max_char_n - char_ngram.n,char_ngram.n - 1] << char) #頻度表の更新
+            char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char) #頻度表の更新
           end
           pre_chars << char
           pre_chars.shift if pre_chars.size >= max_char_n
           break if char == "\x00"
           chars << char
-          i+=1
+          j+=1
         end
         word = chars.join
       end
 
       esc_ngrams.each do |ngram|
-        ngram.update_freq(pre_words[max_n - ngram.n,ngram.n - 1] << word) #頻度表の更新
+        ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word) #頻度表の更新
       end
       pre_words << word
       pre_words.shift if pre_words.size >= max_n

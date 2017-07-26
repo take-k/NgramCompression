@@ -278,7 +278,13 @@ class NgramTableFromFile < NgramTable
     hit = false
 
     last = nil
-    total = encode_last_dic.reduce(1) {|s,(k,v)| s += v}
+    total = encode_last_dic.reduce(1) do |s,(k,v)|
+      if !exclusion.include?(k)
+        s += v
+      else
+        s
+      end
+    end
     encode_last_dic.each do |k, v|
       if !exclusion.include?(k)
         if !hit

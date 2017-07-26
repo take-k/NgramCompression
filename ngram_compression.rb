@@ -30,6 +30,7 @@ opts.on("-t") {|v| $omega_encode = true; $test = true}
 opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = v}
 opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
+opts.on("--update") { |v| $update = true}
 
 opts.parse!(ARGV)
 
@@ -101,40 +102,42 @@ class NgramCompression
   end
 
   #######################################################################
-  def ppm_compress(words)
-    bin = 1 #head
-    cbin = 1
-
-    #file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
-    #ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(nil,i+1)}
-    #max_n = file_names.size
-
-    max_n = 5
+  def ppm_table(max_n,max_char_n)
     ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
     ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
-    words << "\x00"
-    rc = RangeCoder.new
-    exclusion = Set.new
-
-    max_char_n = 5
     char_ngrams = max_char_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
     dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
     dic[''] = 1
     char_ngrams << NgramTableFromFile.new(nil,1,dic)
+    [ngrams,char_ngrams]
+  end
+  def ppm_compress(words)
+    update = $update
+    bin = 1 #head
+    cbin = 1
+
+    max_n = 5
+    max_char_n = 5
+    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
+    rc = RangeCoder.new
+    exclusion = Set.new
+
     char_rc = RangeCoder.new
     char_exclusion = Set.new
+
+    words << "\x00"
     words.each_with_index do |word,i|
       exclusion.clear
       hit = ngrams.any? do |ngram|
-        bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],true) if i >= ngram.n - 1
+        bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],update) if i >= ngram.n - 1
         exist
       end
       if !hit
         chars = word.chars << "\x00" #終端文字
-        word.unpack("C*").each_with_index do |char,i|
+        chars.each_with_index do |char,i|
           char_exclusion.clear
           char_ngrams.any? do |char_ngram|
-            cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
+            cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(i - (char_ngram.n - 1))..i],update) if i >= char_ngram.n - 1
             exist
           end
         end
@@ -148,18 +151,15 @@ class NgramCompression
   end
 
   def ppm_decompress(bin)
+    update = $update
     cbin = @cbin
+
     max_n = 5
-    ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
-    ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
+    max_char_n = 5
+    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
+
     rc = RangeCoder.new
     exclusion = Set.new
-
-    max_char_n = 5
-    char_ngrams = max_char_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
-    dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
-    dic[''] = 1
-    char_ngrams << NgramTableFromFile.new(nil,1,dic)
     char_rc = RangeCoder.new
     char_exclusion = Set.new
 
@@ -170,7 +170,6 @@ class NgramCompression
     clength = char_rc.load_low(cbin,clength)
 
     pre_words = []
-
     words = []
     i = 0
     while(true)
@@ -178,7 +177,7 @@ class NgramCompression
       esc_ngrams = []
       word = ngrams.reduce(nil) do |symbol, ngram|
         if i >= ngram.n - 1
-          symbol,length = ngram.symbol(rc,exclusion,bin,length,pre_words[pre_words.size - ngram.n + 1,ngram.n - 1],true)
+          symbol,length = ngram.symbol(rc,exclusion,bin,length,pre_words[pre_words.size - ngram.n + 1,ngram.n - 1],update)
           esc_ngrams << ngram
           break symbol if symbol
         end
@@ -187,24 +186,27 @@ class NgramCompression
 
       if word == nil
         chars = []
+        j = 0
+        pre_chars = []
         while true
-          j = 0
           char_exclusion.clear
-          pre_chars = []
           esc_char_ngrams = []
           char = char_ngrams.reduce(nil) do |symbol,char_ngram|
             if j >= char_ngram.n - 1
-              symbol,clength = char_ngram.symbol(char_rc,char_exclusion,cbin,clength,pre_chars[pre_chars.size - char_ngram.n+ 1,char_ngram.n - 1],true)
+              symbol,clength = char_ngram.symbol(char_rc,char_exclusion,cbin,clength,pre_chars[pre_chars.size - char_ngram.n+ 1,char_ngram.n - 1],update)
               esc_char_ngrams << char_ngram
               break symbol if symbol
             end
           end
           esc_char_ngrams.each do |char_ngram|
-            char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char) #頻度表の更新
+            char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char) if update #頻度表の更新
           end
           pre_chars << char
           pre_chars.shift if pre_chars.size >= max_char_n
-          break if char == "\x00"
+          if char == "\x00"
+            word = chars.join
+            break
+          end
           chars << char
           j+=1
         end
@@ -212,7 +214,7 @@ class NgramCompression
       end
 
       esc_ngrams.each do |ngram|
-        ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word) #頻度表の更新
+        ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word) if update #頻度表の更新
       end
       pre_words << word
       pre_words.shift if pre_words.size >= max_n

@@ -244,11 +244,16 @@ class NgramTableFromFile < NgramTable
     count_sum = 0
     hit = false
     encode_last_dic.each do |k, v|
-      hit = hit || (k == last)
       if !exclusion.include?(k)
         total += v
-        count_sum += v unless hit
         exclusion << k
+        if !hit
+          if k == last
+            hit = true
+          else
+            count_sum += v
+          end
+        end
       end
     end
 
@@ -272,27 +277,28 @@ class NgramTableFromFile < NgramTable
     count_sum = 0
     hit = false
 
-    char = nil
+    last = nil
     total = encode_last_dic.reduce(1) {|s,(k,v)| s += v}
     encode_last_dic.each do |k, v|
       if !exclusion.include?(k)
         if !hit
-          count_sum += v
-          if rc.code < rc.low + (rc.range * count_sum / total)
+          if rc.code < rc.low + (rc.range * (count_sum + v) / total)
             hit = true
-            char = k
+            last = k
+          else
+            count_sum += v
           end
         end
         exclusion << k
       end
     end
 
-    f = encode_last_dic[char] ? encode_last_dic[char] : 1
+    f = encode_last_dic[last] ? encode_last_dic[last] : 1
 
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     length = rc.decode_shift(bin,length)
-    [char,length]
+    [last,length]
   end
 
   def update_freq(pre,symbol)

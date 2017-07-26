@@ -84,13 +84,13 @@ class NgramCompression
       ngram = NgramTableFromFile.new($ngramfile)
     end
 
-    #圧縮
+    str = ''
     if $naive
-      bin = naive_decompress(words,ngram)
+      str = naive_decompress(words,ngram)
     elsif $lz78
-      bin = lz78_decompress(bin,ngram)
+      str = lz78_decompress(bin,ngram)
     else
-      bin = ppm_decompress(bin)
+      str = ppm_decompress(bin)
     end
 
     File.open(file, 'wb') do |f|
@@ -100,16 +100,19 @@ class NgramCompression
     ngram.finish
   end
 
-  #=======================================================================
+  #######################################################################
   def ppm_compress(words)
     bin = 1 #head
+    cbin = 1
 
     #file_names = ["n-grams/test1gm","n-grams/test2gm","n-grams/test3gm","n-grams/test4gm","n-grams/test5gm"]
     #ngrams = file_names.each_with_index.map {|name,i| NgramTableFromFile.new(nil,i+1)}
     #max_n = file_names.size
 
     max_n = 5
-    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
+    ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
+    ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
+    words << "\x00"
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -131,20 +134,24 @@ class NgramCompression
         word.unpack("C*").each_with_index do |char,i|
           char_exclusion.clear
           char_ngrams.any? do |char_ngram|
-            bin,exist = char_ngram.freq(char_rc,char_exclusion,bin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
+            cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,word.chars[(i - (char_ngram.n - 1))..i],true) if i >= char_ngram.n - 1
             exist
           end
         end
-        bin = char_rc.finish(bin)
       end
     end
     bin = rc.finish(bin)
+    cbin = char_rc.finish(cbin)
+    p cbin.bit_length
+    @cbin = cbin
     bin
   end
 
   def ppm_decompress(bin)
+    cbin = @cbin
     max_n = 5
-    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
+    ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
+    ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -157,13 +164,16 @@ class NgramCompression
     char_exclusion = Set.new
 
     length = bin.bit_length - 1
-    length = rc.load_code(bin,length)
+    length = rc.load_low(bin,length)
+
+    clength = cbin.bit_length - 1
+    clength = char_rc.load_low(cbin,clength)
 
     pre_words = []
 
     words = []
     i = 0
-    while(length > 0)
+    while(true)
       exclusion.clear
       esc_ngrams = []
       word = ngrams.reduce(nil) do |symbol, ngram|
@@ -173,18 +183,18 @@ class NgramCompression
           break symbol if symbol
         end
       end
+      break if word == "\x00"
 
       if word == nil
         chars = []
-        j = 0
-        length = char_rc.load_code(bin,length)
         while true
+          j = 0
           char_exclusion.clear
           pre_chars = []
           esc_char_ngrams = []
           char = char_ngrams.reduce(nil) do |symbol,char_ngram|
             if j >= char_ngram.n - 1
-              symbol,length = char_ngram.symbol(char_rc,char_exclusion,bin,length,pre_chars[pre_chars.size - char_ngram.n+ 1,char_ngram.n - 1],true)
+              symbol,clength = char_ngram.symbol(char_rc,char_exclusion,cbin,clength,pre_chars[pre_chars.size - char_ngram.n+ 1,char_ngram.n - 1],true)
               esc_char_ngrams << char_ngram
               break symbol if symbol
             end
@@ -209,6 +219,7 @@ class NgramCompression
       words << word
       i+=1
     end
+    join_words(words)
   end
 
   ###========================================================

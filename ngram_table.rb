@@ -282,7 +282,8 @@ class NgramTableFromFile < NgramTable
     encode_last_dic.each do |k, v|
       if !exclusion.include?(k)
         if !hit
-          if rc.code < rc.low + (rc.range * (count_sum + v) / total)
+          #if rc.code < rc.low + (rc.range * (count_sum + v) / total)
+          if rc.low < (rc.range * (count_sum + v) / total)
             hit = true
             last = k
           else
@@ -295,7 +296,8 @@ class NgramTableFromFile < NgramTable
 
     f = encode_last_dic[last] ? encode_last_dic[last] : 1
 
-    rc.low += rc.range * count_sum / total
+    rc.low -= rc.range * count_sum / total
+    #rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     length = rc.decode_shift(bin,length)
     [last,length]

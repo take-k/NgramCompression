@@ -145,15 +145,17 @@ class NgramCompression
     end
     bin = rc.finish(bin)
     cbin = char_rc.finish(cbin)
-    p cbin.bit_length
-    @cbin = cbin
-    bin
+    result = 1
+    result = omega(result,bin.bit_length)
+    result = (result << bin.bit_length) + bin
+    result = (result << cbin.bit_length) + cbin
+    result
   end
 
   def ppm_decompress(bin)
     update = $update
-    cbin = @cbin
 
+    cbin = bin
     max_n = 5
     max_char_n = 5
     ngrams,char_ngrams = ppm_table(max_n,max_char_n)
@@ -163,10 +165,13 @@ class NgramCompression
     char_rc = RangeCoder.new
     char_exclusion = Set.new
 
-    length = bin.bit_length - 1
+    total_length = bin.bit_length - 1
+    size,length = decode_omega(bin,total_length)
+    clength = length - size
+    length -= 1
     length = rc.load_low(bin,length)
 
-    clength = cbin.bit_length - 1
+    clength -= 1
     clength = char_rc.load_low(cbin,clength)
 
     pre_words = []

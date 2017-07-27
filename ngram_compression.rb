@@ -111,6 +111,17 @@ class NgramCompression
     char_ngrams << NgramTableFromFile.new(nil,1,dic)
     [ngrams,char_ngrams]
   end
+
+  def ppm_table_file(max_n,max_char_n)
+    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new("n-grams/word#{i}gm",i)}
+    ngrams[max_n - 1].encode_table["\x00"] = 1
+    char_ngrams = max_char_n.downto(1).map {|i| NgramTableFromFile.new("n-grams/test#{i}gm",i)}
+    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] = 1}
+    char_ngrams[max_char_n - 1].encode_table[""] = 1
+    [ngrams,char_ngrams]
+  end
+
+
   def ppm_compress(words)
     update = $update
     bin = 1 #head
@@ -118,7 +129,7 @@ class NgramCompression
 
     max_n = 5
     max_char_n = 5
-    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
+    ngrams,char_ngrams = ppm_table_file(max_n,max_char_n)
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -158,7 +169,7 @@ class NgramCompression
     cbin = bin
     max_n = 5
     max_char_n = 5
-    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
+    ngrams,char_ngrams = ppm_table_file(max_n,max_char_n)
 
     rc = RangeCoder.new
     exclusion = Set.new

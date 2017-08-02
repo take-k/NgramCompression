@@ -31,7 +31,8 @@ opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = 
 opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 opts.on("--update") { |v| $update = true}
-
+opts.on("--output") { |v| $table_output = true}
+$update = true
 opts.parse!(ARGV)
 
 $targetfile = ARGV[0] ? ARGV[0]:'cantrbry/alice29.txt'
@@ -57,20 +58,11 @@ class NgramCompression
     #@excludes.each {|x| words.delete(x)}
     #words.delete("")
 
-    #ngramセットアップ
-    if $is_db
-      ngram = NgramTableFromPg.new($dbname)
-      puts "tablename: #{$dbname}" if $info
-    else
-      ngram = NgramTableFromFile.new($ngramfile)
-      puts "ngramfile: #{$ngramfile}" if $info
-    end
-
     #圧縮
     if $naive
-      bin = naive_compress(words,ngram)
+      bin = naive_compress(words)
     elsif $lz78
-      bin = lz78_compress(words,ngram)
+      bin = lz78_compress(words)
     else
       bin = ppm_compress(words)
     end
@@ -102,6 +94,19 @@ class NgramCompression
   end
 
   #######################################################################
+  def ngram_table()
+    #ngramセットアップ
+    ngram = nil
+    if $is_db
+      ngram = NgramTableFromPg.new($dbname)
+      puts "tablename: #{$dbname}" if $info
+    else
+      ngram = NgramTableFromFile.new($ngramfile)
+      puts "ngramfile: #{$ngramfile}" if $info
+    end
+    ngram
+  end
+
   def ppm_table(max_n,max_char_n)
     ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
     ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
@@ -156,6 +161,8 @@ class NgramCompression
     end
     bin = rc.finish(bin)
     cbin = char_rc.finish(cbin)
+    ngrams.each {|n| n.write("n-grams/output/word#{n.n}out.tsv")} if $table_output
+    char_ngrams.each {|n| n.write("n-grams/output/char#{n.n}.tsv")} if $table_output
     result = 1
     result = omega(result,bin.bit_length)
     result = (result << bin.bit_length) + bin
@@ -257,7 +264,8 @@ class NgramCompression
     [first_words,ranks]
   end
 
-  def lz78_compress(words,ngram)
+  def lz78_compress(words)
+    ngram = ngram_table()
     words_hash = {[]=>0}
     results = []
     counter = 0
@@ -496,7 +504,8 @@ class NgramCompression
     join_words(results)
   end
 
-  def naive_compress(words,ngram)
+  def naive_compress(words)
+    ngram = ngram_table()
     bin = 4
     first_words,ranks = convert_to_ranks(words,ngram)
     ranks.each do |rank|

@@ -190,6 +190,7 @@ class NgramTableFromFile < NgramTable
     reset_count
     @count = 0
     if file
+      @file = file
       f = open(file,'rb')
       while (input = f.gets) do
         row = input.split("\t")
@@ -204,6 +205,18 @@ class NgramTableFromFile < NgramTable
         @count += 1
       end
     end
+  end
+
+  def list(e,i)
+    return [e.to_s] if i == 0
+    e.reduce([]) do |a,(k,v)|
+      a.concat(list(v,i-1).map{|str|"#{k}\t#{str}"})
+    end
+  end
+
+  def write(output = @file)
+    str = list(@encode_table,@n).join("\n")
+    open(output,"wb").write(str)
   end
 
   def rank(keywords,update = false)

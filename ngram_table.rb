@@ -213,15 +213,17 @@ class NgramTableFromFile < NgramTable
     end
   end
 
-  def list(e,i)
-    return [e.to_s] if i == 0
-    e.reduce([]) do |a,(k,v)|
-      a.concat(list(v,i-1).map{|str|"#{k}\t#{str}"})
+  def list(hash,i)#{{{}}}
+    return [[hash]] if i == 0
+
+    hash.reduce([]) do |array,(k,v)|
+      array.concat(list(v,i-1).map{|strs| [k].concat(strs)})
     end
   end
 
   def write(output = @file)
-    str = list(@encode_table,@n).join("\n")
+    list = list(@encode_table,@n).sort {|a1,a2| a1.last <=> a2.last}.reverse.map{|a| a.join("\t")}
+    str = list.join("\n")
     open(output,"wb").write(str)
   end
 

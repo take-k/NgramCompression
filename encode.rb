@@ -55,9 +55,9 @@ end
 
 class RangeCoder
   attr_accessor :low,:range,:code
-  MAX_RANGE_LENGTH = 32
-  MIN_RANGE_LENGTH = 24
-  SHIFT = 24  #?
+  MAX_RANGE_LENGTH = 128
+  MIN_RANGE_LENGTH = 96
+  SHIFT = 96  #?
   HEAD = MAX_RANGE_LENGTH - SHIFT
   MAX_RANGE = (1 << MAX_RANGE_LENGTH) - 1
   MIN_RANGE = 1 << MIN_RANGE_LENGTH

@@ -182,6 +182,7 @@ end
 $escape_character = "ESCC"
 $null_character = "NULLC"
 $empty_character = "EMPTYC"
+$return_character = "CRLNC"
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
   def initialize(file = nil,n = nil,encode_table = {},decode_table = {})
@@ -200,6 +201,7 @@ class NgramTableFromFile < NgramTable
         words.each_with_index do |w,i|
           words[i] = "\x00" if w == $null_character
           words[i] = "" if w == $empty_character
+          words[i] = "\r\n" if w == $return_character
         end
         rank = row[-1].to_i
         last = words.pop

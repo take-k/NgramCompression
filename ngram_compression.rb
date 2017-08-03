@@ -108,21 +108,22 @@ class NgramCompression
   end
 
   def ppm_table(max_n,max_char_n)
-    ngrams = max_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
-    ngrams << NgramTableFromFile.new(nil,1,{"\x00" => 1})
-    char_ngrams = max_char_n.downto(2).map {|i| NgramTableFromFile.new(nil,i)}
-    dic = (0..255).reduce({}) {|d,i| d[i.chr] = 1;d}
-    dic[''] = 1
-    char_ngrams << NgramTableFromFile.new(nil,1,dic)
+    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
+    ngrams[max_n - 1].encode_table["\x00"] = 1
+    char_ngrams = max_char_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
+    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] = 1}
+    char_ngrams[max_char_n - 1].encode_table[""] = 1
     [ngrams,char_ngrams]
   end
 
   def ppm_table_file(max_n,max_char_n)
-    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new("n-grams/word#{i}gm",i)}
-    ngrams[max_n - 1].encode_table["\x00"] = 1
+    ngrams = max_n.downto(1).map {|i| p = NgramTableFromFile.new("n-grams/word#{i}gm",i)}
+    ngrams[max_n - 1].encode_table["\x00"] ||= 1
+
     char_ngrams = max_char_n.downto(1).map {|i| NgramTableFromFile.new("n-grams/test#{i}gm",i)}
-    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] = 1}
-    char_ngrams[max_char_n - 1].encode_table[""] = 1
+    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
+    char_ngrams[max_char_n - 1].encode_table["\x00"] ||= 1
+    char_ngrams[max_char_n - 1].encode_table[""] ||= 1
     [ngrams,char_ngrams]
   end
 
@@ -134,7 +135,7 @@ class NgramCompression
 
     max_n = 5
     max_char_n = 5
-    ngrams,char_ngrams = ppm_table_file(max_n,max_char_n)
+    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -161,8 +162,12 @@ class NgramCompression
     end
     bin = rc.finish(bin)
     cbin = char_rc.finish(cbin)
+
+    ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
+    char_ngrams.each {|n| n.print_rate} if $info
     ngrams.each {|n| n.write("n-grams/output/word#{n.n}out.tsv")} if $table_output
     char_ngrams.each {|n| n.write("n-grams/output/char#{n.n}.tsv")} if $table_output
+    puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte")
     result = 1
     result = omega(result,bin.bit_length)
     result = (result << bin.bit_length) + bin

@@ -179,7 +179,9 @@ class NgramTableFromPg < NgramTable
     @connection.finish
   end
 end
-
+$escape_character = "ESCC"
+$null_character = "NULLC"
+$empty_character = "EMPTYC"
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
   def initialize(file = nil,n = nil,encode_table = {},decode_table = {})
@@ -195,6 +197,10 @@ class NgramTableFromFile < NgramTable
       while (input = f.gets) do
         row = input.split("\t")
         words = row[0,row.size-1] #rank以外を取り出す
+        words.each_with_index do |w,i|
+          words[i] = "\x00" if w == $null_character
+          words[i] = "" if w == $empty_character
+        end
         rank = row[-1].to_i
         last = words.pop
         @n = words.size unless @n
@@ -250,6 +256,7 @@ class NgramTableFromFile < NgramTable
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
+    @total += 1
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
@@ -276,6 +283,7 @@ class NgramTableFromFile < NgramTable
     else
       encode_last_dic[last] = 1 if update
       f = 1
+      @fail+=1
     end
 
     rc.low += rc.range * count_sum / total
@@ -316,7 +324,6 @@ class NgramTableFromFile < NgramTable
     f = encode_last_dic[last] ? encode_last_dic[last] : 1
 
     rc.low -= rc.range * count_sum / total
-    #rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     length = rc.decode_shift(bin,length)
     [last,length]
@@ -326,6 +333,139 @@ class NgramTableFromFile < NgramTable
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     encode_last_dic[symbol] = 0 unless encode_last_dic[symbol]
     encode_last_dic[symbol] += 1
+  end
+end
+
+class PPMA < NgramTableFromFile
+  attr_accessor :esc
+  def reset_count
+    super
+    @esc = 30
+    puts "PPMA n = #{@n} esc = #{@esc} "
+  end
+
+  def freq(rc,exclusion,bin,keywords,update = false)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    total = @esc
+    count_sum = 0
+    hit = false
+    encode_last_dic.each do |k, v|
+      if !exclusion.include?(k)
+        total += v
+        exclusion << k
+        if !hit
+          if k == last
+            hit = true
+          else
+            count_sum += v
+          end
+        end
+      end
+    end
+
+    if hit
+      f = encode_last_dic[last]
+      encode_last_dic[last] += 1 if update
+    else
+      encode_last_dic[last] = 1 if update
+      f = @esc
+    end
+
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    bin = rc.encode_shift(bin)
+    [bin,hit]
+  end
+
+end
+
+class PPMB < NgramTableFromFile
+  def reset_count
+    super
+    @esc = 1
+  end
+
+  def freq(rc,exclusion,bin,keywords,update = false)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    total = 1
+    count_sum = 0
+    hit = false
+    encode_last_dic.each do |k, v|
+      if !exclusion.include?(k)
+        total += v
+        exclusion << k
+        if !hit
+          if k == last && v > 1
+            hit = true
+          else
+            count_sum += v
+          end
+        end
+      end
+    end
+
+    if hit
+      f = encode_last_dic[last] - 1
+      encode_last_dic[last] += 1 if update
+    else
+      encode_last_dic[last] = encode_last_dic[last] ? 2:1 if update
+      f = @esc
+      @esc += 1 if encode_last_dic[last] == 1
+    end
+
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    bin = rc.encode_shift(bin)
+    [bin,hit]
+  end
+
+end
+
+
+class PPMC < NgramTableFromFile
+  def reset_count
+    super
+    @esc = 1
+    puts "PPMC n = #{@n} esc = #{@esc} "
+  end
+  def freq(rc,exclusion,bin,keywords,update = false)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    total = 0
+    count_sum = 0
+    hit = false
+    encode_last_dic.each do |k, v|
+      if !exclusion.include?(k)
+        total += v
+        exclusion << k
+        if !hit
+          if k == last
+            hit = true
+          else
+            count_sum += v
+          end
+        end
+      end
+    end
+    total += @esc
+
+    if hit
+      f = encode_last_dic[last]
+      encode_last_dic[last] += 1 if update
+    else
+      encode_last_dic[last] = 1 if update
+      f = @esc
+      @esc += 1
+    end
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    bin = rc.encode_shift(bin)
+    [bin,hit]
   end
 end
 

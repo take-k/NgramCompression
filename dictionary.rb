@@ -6,8 +6,20 @@ $in = ARGV[0]
 $out = ARGV[1]
 $threshold = ARGV[2].to_i
 
-#$stdin = open(input, "rb")
-$stdout = open($out, "wb") if ARGV[1]
+$stdin = open($in, "rb") if $in
+$stdout = open($out, "wb") if $out
+
+def web1gm_freq
+  freq_threadshold = 100000000
+  dic = {}
+  while input = gets do
+    str,freqstr = input.split("\t")
+    freq = freqstr.to_i
+    dic[str] = freq if freq > freq_threadshold
+  end
+
+  dic.each_with_index { |(k, v),i| puts "#{k}\t#{2}" }
+end
 
 def web1gm
   freq_threadshold = 10000
@@ -52,6 +64,6 @@ def web2gm
   #end
 end
 
-web2gm
+web1gm_freq
 
 

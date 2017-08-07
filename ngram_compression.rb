@@ -32,6 +32,9 @@ opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 opts.on("--update") { |v| $update = true}
 opts.on("--output") { |v| $table_output = true}
+opts.on("--esc") { |v| $esc = v.to_i}
+opts.on("--maxn") { |v| $max_n = v.to_i}
+opts.on("--max_char_n") { |v| $max_char_n = v.to_i}
 $update = true
 opts.parse!(ARGV)
 
@@ -133,8 +136,8 @@ class NgramCompression
     bin = 1 #head
     cbin = 1
 
-    max_n = 5
-    max_char_n = 5
+    max_n = $max_n || 3
+    max_char_n = $max_char_n || 5
     ngrams,char_ngrams = ppm_table(max_n,max_char_n)
     rc = RangeCoder.new
     exclusion = Set.new

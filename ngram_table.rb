@@ -190,6 +190,7 @@ class NgramTableFromFile < NgramTable
     @n = n
     @encode_table = encode_table
     @decode_table = decode_table
+    @esc = $esc || 1
     reset_count
     @count = 0
     if file
@@ -344,7 +345,6 @@ class PPMA < NgramTableFromFile
   attr_accessor :esc
   def reset_count
     super
-    @esc = 30
     puts "PPMA n = #{@n} esc = #{@esc} "
   end
 
@@ -388,7 +388,7 @@ end
 class PPMB < NgramTableFromFile
   def reset_count
     super
-    @esc = 1
+    puts "PPMB n = #{@n} esc = #{@esc} "
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
@@ -433,7 +433,6 @@ end
 class PPMC < NgramTableFromFile
   def reset_count
     super
-    @esc = 1
     puts "PPMC n = #{@n} esc = #{@esc} "
   end
   def freq(rc,exclusion,bin,keywords,update = false)

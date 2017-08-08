@@ -25,11 +25,11 @@ opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = 
 opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 opts.on("--nonupdate") { |v| $nonupdate = false}
-opts.on("--output") { |v| $table_output = true}
 opts.on("--esc") { |v| $esc = v.to_i}
 opts.on("--maxn") { |v| $max_n = v.to_i}
 opts.on("--max_char_n") { |v| $max_char_n = v.to_i}
-opts.on("--file") { |v| $file = true}
+opts.on("--ipath[=path]") { |v| $ipath = v}
+opts.on("--opath[=path]") { |v| $opath = v}
 opts.parse!(ARGV)
 
 $is_db = config[:d] != nil || ENV['DB'] == 'true'
@@ -103,12 +103,12 @@ class NgramCompression
     ngram
   end
 
-  def ppm_table(file = false)
+  def ppm_table(path = nil)
     max_n = $max_n || 5
     max_char_n = $max_char_n || 5
-    ngrams = max_n.downto(1).map {|i| PPMC.new(file ? "n-grams/word#{i}gm" : nil,i)}
+    ngrams = max_n.downto(1).map {|i| PPMC.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
     ngrams[max_n - 1].encode_table["\x00"] ||= 1
-    char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(file ? "n-grams/test#{i}gm" : nil,i)}
+    char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
     char_ngrams[max_char_n - 1].encode_table[""] ||= 1
     [ngrams,char_ngrams]
@@ -119,7 +119,7 @@ class NgramCompression
     bin = 1 #head
     cbin = 1
 
-    ngrams,char_ngrams = ppm_table($file)
+    ngrams,char_ngrams = ppm_table($ipath)
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -149,8 +149,8 @@ class NgramCompression
 
     ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
     char_ngrams.each {|n| n.print_rate} if $info
-    ngrams.each {|n| n.write("n-grams/output/word#{n.n}out.tsv")} if $table_output
-    char_ngrams.each {|n| n.write("n-grams/output/char#{n.n}.tsv")} if $table_output
+    ngrams.each {|n| n.write("#{$opath}word#{n.n}.tsv")} if $opath
+    char_ngrams.each {|n| n.write("#{$opath}char#{n.n}.tsv")} if $opath
     puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte")
     result = 1
     result = omega(result,bin.bit_length)
@@ -163,7 +163,7 @@ class NgramCompression
     update = $nonupdate ? false: true
 
     cbin = bin
-    ngrams,char_ngrams = ppm_table($file)
+    ngrams,char_ngrams = ppm_table($ipath)
 
     rc = RangeCoder.new
     exclusion = Set.new

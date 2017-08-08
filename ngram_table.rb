@@ -203,6 +203,7 @@ class NgramTableFromFile < NgramTable
           words[i] = "\x00" if w == $null_character
           words[i] = "" if w == $empty_character
           words[i] = "\r\n" if w == $return_character
+          words[i] = :esc if w == $escape_character
         end
         rank = row[-1].to_i
         last = words.pop

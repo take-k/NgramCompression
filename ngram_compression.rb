@@ -108,7 +108,6 @@ class NgramCompression
     max_char_n = $max_char_n || 5
     ngrams = max_n.downto(1).map {|i| PPMC.new(file ? "n-grams/word#{i}gm" : nil,i)}
     ngrams[max_n - 1].encode_table["\x00"] ||= 1
-    ngrams[max_n - 1].encode_table[:esc] ||= 1
     char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(file ? "n-grams/test#{i}gm" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
     char_ngrams[max_char_n - 1].encode_table[""] ||= 1
@@ -164,8 +163,6 @@ class NgramCompression
     update = $update
 
     cbin = bin
-    max_n = $max_n || 5
-    max_char_n = $max_char_n || 5
     ngrams,char_ngrams = ppm_table($file)
 
     rc = RangeCoder.new

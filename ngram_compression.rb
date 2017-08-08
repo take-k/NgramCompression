@@ -103,7 +103,9 @@ class NgramCompression
     ngram
   end
 
-  def ppm_table(max_n,max_char_n,file = false)
+  def ppm_table(file = false)
+    max_n = $max_n || 5
+    max_char_n = $max_char_n || 5
     ngrams = max_n.downto(1).map {|i| PPMC.new(file ? "n-grams/word#{i}gm" : nil,i)}
     ngrams[max_n - 1].encode_table["\x00"] ||= 1
     ngrams[max_n - 1].encode_table[:esc] ||= 1
@@ -118,9 +120,7 @@ class NgramCompression
     bin = 1 #head
     cbin = 1
 
-    max_n = $max_n || 5
-    max_char_n = $max_char_n || 5
-    ngrams,char_ngrams = ppm_table(max_n,max_char_n,$file)
+    ngrams,char_ngrams = ppm_table($file)
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -166,7 +166,7 @@ class NgramCompression
     cbin = bin
     max_n = $max_n || 5
     max_char_n = $max_char_n || 5
-    ngrams,char_ngrams = ppm_table(max_n,max_char_n,$file)
+    ngrams,char_ngrams = ppm_table($file)
 
     rc = RangeCoder.new
     exclusion = Set.new
@@ -215,7 +215,7 @@ class NgramCompression
             char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char) if update #頻度表の更新
           end
           pre_chars << char
-          pre_chars.shift if pre_chars.size >= max_char_n
+          pre_chars.shift if pre_chars.size >= char_ngrams.size
           if char == "\x00"
             word = chars.join
             break
@@ -230,7 +230,7 @@ class NgramCompression
         ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word) if update #頻度表の更新
       end
       pre_words << word
-      pre_words.shift if pre_words.size >= max_n
+      pre_words.shift if pre_words.size >= ngrams.size
       words << word
       i+=1
     end

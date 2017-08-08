@@ -431,9 +431,9 @@ end
 
 
 class PPMC < NgramTableFromFile
-  def reset_count
-    super
-    puts "PPMC n = #{@n} esc = #{@esc} "
+  def initialize(file = nil,n = nil)
+    super(file,n)
+    puts "PPMC n = #{@n}"
     @symbol_inc = 1
     @symbol_init = 1
     @escape_inc = 1

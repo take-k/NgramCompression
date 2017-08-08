@@ -29,6 +29,7 @@ opts.on("--output") { |v| $table_output = true}
 opts.on("--esc") { |v| $esc = v.to_i}
 opts.on("--maxn") { |v| $max_n = v.to_i}
 opts.on("--max_char_n") { |v| $max_char_n = v.to_i}
+opts.on("--file") { |v| $file = true}
 opts.parse!(ARGV)
 
 $is_db = config[:d] != nil || ENV['DB'] == 'true'
@@ -102,35 +103,24 @@ class NgramCompression
     ngram
   end
 
-  def ppm_table(max_n,max_char_n)
-    ngrams = max_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
-    ngrams[max_n - 1].encode_table["\x00"] = 1
-    char_ngrams = max_char_n.downto(1).map {|i| NgramTableFromFile.new(nil,i)}
-    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] = 1}
-    char_ngrams[max_char_n - 1].encode_table[""] = 1
-    [ngrams,char_ngrams]
-  end
-
-  def ppm_table_file(max_n,max_char_n)
-    ngrams = max_n.downto(1).map {|i| p = NgramTableFromFile.new("n-grams/word#{i}gm",i)}
+  def ppm_table(max_n,max_char_n,file = false)
+    ngrams = max_n.downto(1).map {|i| PPMC.new(file ? "n-grams/word#{i}gm" : nil,i)}
     ngrams[max_n - 1].encode_table["\x00"] ||= 1
-
-    char_ngrams = max_char_n.downto(1).map {|i| NgramTableFromFile.new("n-grams/test#{i}gm",i)}
+    ngrams[max_n - 1].encode_table[:esc] ||= 1
+    char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(file ? "n-grams/test#{i}gm" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
-    char_ngrams[max_char_n - 1].encode_table["\x00"] ||= 1
     char_ngrams[max_char_n - 1].encode_table[""] ||= 1
     [ngrams,char_ngrams]
   end
-
 
   def ppm_compress(words)
     update = $update
     bin = 1 #head
     cbin = 1
 
-    max_n = $max_n || 3
+    max_n = $max_n || 5
     max_char_n = $max_char_n || 5
-    ngrams,char_ngrams = ppm_table(max_n,max_char_n)
+    ngrams,char_ngrams = ppm_table(max_n,max_char_n,$file)
     rc = RangeCoder.new
     exclusion = Set.new
 
@@ -174,9 +164,9 @@ class NgramCompression
     update = $update
 
     cbin = bin
-    max_n = 5
-    max_char_n = 5
-    ngrams,char_ngrams = ppm_table_file(max_n,max_char_n)
+    max_n = $max_n || 5
+    max_char_n = $max_char_n || 5
+    ngrams,char_ngrams = ppm_table(max_n,max_char_n,$file)
 
     rc = RangeCoder.new
     exclusion = Set.new

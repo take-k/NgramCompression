@@ -24,7 +24,7 @@ opts.on("-t") {|v| $omega_encode = true; $test = true}
 opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = v}
 opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
-opts.on("--update") { |v| $update = true}
+opts.on("--nonupdate") { |v| $nonupdate = false}
 opts.on("--output") { |v| $table_output = true}
 opts.on("--esc") { |v| $esc = v.to_i}
 opts.on("--maxn") { |v| $max_n = v.to_i}
@@ -115,7 +115,7 @@ class NgramCompression
   end
 
   def ppm_compress(words)
-    update = $update
+    update = $nonupdate ? false : true
     bin = 1 #head
     cbin = 1
 
@@ -160,7 +160,7 @@ class NgramCompression
   end
 
   def ppm_decompress(bin)
-    update = $update
+    update = $nonupdate ? false: true
 
     cbin = bin
     ngrams,char_ngrams = ppm_table($file)

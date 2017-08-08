@@ -24,7 +24,7 @@ opts.on("-t") {|v| $omega_encode = true; $test = true}
 opts.on("--dist[=path]") { |v| $show_distribution = true , $distribution_file = v}
 opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
-opts.on("--nonupdate") { |v| $nonupdate = false}
+opts.on("--nonupdate") { |v| $nonupdate = true}
 opts.on("--esc") { |v| $esc = v.to_i}
 opts.on("--maxn") { |v| $max_n = v.to_i}
 opts.on("--max_char_n") { |v| $max_char_n = v.to_i}
@@ -149,8 +149,8 @@ class NgramCompression
 
     ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
     char_ngrams.each {|n| n.print_rate} if $info
-    ngrams.each {|n| n.write("#{$opath}word#{n.n}.tsv")} if $opath
-    char_ngrams.each {|n| n.write("#{$opath}char#{n.n}.tsv")} if $opath
+    ngrams.each {|n| n.write("#{$opath}/word#{n.n}.tsv")} if $opath
+    char_ngrams.each {|n| n.write("#{$opath}/char#{n.n}.tsv")} if $opath
     puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte")
     result = 1
     result = omega(result,bin.bit_length)

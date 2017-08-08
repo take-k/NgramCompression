@@ -179,10 +179,19 @@ class NgramTableFromPg < NgramTable
     @connection.finish
   end
 end
-$escape_character = "ESCC"
-$null_character = "NULLC"
-$empty_character = "EMPTYC"
-$return_character = "CRLNC"
+
+$escaped_characters = {
+    "ESCC" => :esc,
+    "NULLC" => "\x00",
+    "EMPTYC" => "",
+    "CRC" => "\r",
+    "LNC" => "\n",
+    "TABC" => "\t",
+    "CRLNC" => "\r\n"
+
+}
+$escaped_characters_invert = $escaped_characters.invert
+
 class NgramTableFromFile < NgramTable
   attr_accessor :encode_table,:decode_table
   def initialize(file = nil,n = nil,encode_table = {},decode_table = {})
@@ -200,10 +209,7 @@ class NgramTableFromFile < NgramTable
         row = input.split("\t")
         words = row[0,row.size-1] #rank以外を取り出す
         words.each_with_index do |w,i|
-          words[i] = "\x00" if w == $null_character
-          words[i] = "" if w == $empty_character
-          words[i] = "\r\n" if w == $return_character
-          words[i] = :esc if w == $escape_character
+          words[i] = $escaped_characters[w] if $escaped_characters[w]
         end
         rank = row[-1].to_i
         last = words.pop
@@ -221,6 +227,7 @@ class NgramTableFromFile < NgramTable
     return [[hash]] if i == 0
 
     hash.reduce([]) do |array,(k,v)|
+      k = $escaped_characters_invert[k] if $escaped_characters_invert[k]
       array.concat(list(v,i-1).map{|strs| [k].concat(strs)})
     end
   end

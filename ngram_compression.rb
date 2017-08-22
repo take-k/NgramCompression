@@ -26,8 +26,8 @@ opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 opts.on("--nonupdate") { |v| $nonupdate = true}
 opts.on("--esc") { |v| $esc = v.to_i}
-opts.on("--maxn") { |v| $max_n = v.to_i}
-opts.on("--max_char_n") { |v| $max_char_n = v.to_i}
+opts.on("--maxn[=value]") { |v| $max_n = v.to_i}
+opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}
 opts.on("--ipath[=path]") { |v| $ipath = v}
 opts.on("--opath[=path]") { |v| $opath = v}
 opts.parse!(ARGV)
@@ -107,7 +107,7 @@ class NgramCompression
     max_n = $max_n || 5
     max_char_n = $max_char_n || 5
     ngrams = max_n.downto(1).map {|i| PPMC.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
-    ngrams[max_n - 1].encode_table["\x00"] ||= 1
+    ngrams[max_n - 1].encode_table["\x00"] ||= 1 if ngrams[max_n - 1]
     char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
     char_ngrams[max_char_n - 1].encode_table[""] ||= 1

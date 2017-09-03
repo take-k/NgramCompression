@@ -353,7 +353,6 @@ class PPMA < NgramTableFromFile
   attr_accessor :esc
   def reset_count
     super
-    puts "PPMA n = #{@n} esc = #{@esc} " if $info
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
@@ -396,7 +395,6 @@ end
 class PPMB < NgramTableFromFile
   def reset_count
     super
-    puts "PPMB n = #{@n} esc = #{@esc} " if $info
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
@@ -441,7 +439,6 @@ end
 class PPMC < NgramTableFromFile
   def initialize(file = nil,n = nil)
     super(file,n)
-    puts "PPMC n = #{@n}" if $info
     @symbol_inc = 1
     @symbol_init = 1
     @escape_inc = 1
@@ -491,7 +488,6 @@ class PPMC < NgramTableFromFile
   def symbol(rc,exclusion,bin,length,pre_words,update = false)
     encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     encode_last_dic[:esc] ||= @escape_init
-    total = 0
     count_sum = 0
     hit = false
     last = nil

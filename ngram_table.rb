@@ -349,90 +349,58 @@ class NgramTableFromFile < NgramTable
   end
 end
 
-class PPMA < NgramTableFromFile
-  attr_accessor :esc
-  def reset_count
-    super
-  end
-
-  def freq(rc,exclusion,bin,keywords,update = false)
-    words = keywords[0,keywords.size-1]
-    last = keywords[-1]
-    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    total = @esc
-    count_sum = 0
-    hit = false
-    encode_last_dic.each do |k, v|
-      if !exclusion.include?(k)
-        total += v
-        exclusion << k
-        if !hit
-          if k == last
-            hit = true
-          else
-            count_sum += v
-          end
-        end
-      end
-    end
-
-    if hit
-      f = encode_last_dic[last]
-      encode_last_dic[last] += 1 if update
-    else
-      encode_last_dic[last] = 1 if update
-      f = @esc
-    end
-
-    rc.low += rc.range * count_sum / total
-    rc.range = rc.range * f / total
-    bin = rc.encode_shift(bin)
-    [bin,hit]
-  end
-
-end
-
 class PPMB < NgramTableFromFile
-  def reset_count
-    super
+  def initialize(file = nil,n = nil)
+    super(file,n)
+    @symbol_inc = 1
+    @symbol_init = 1
+    @escape_inc = 1
+    @escape_init = 1
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    total = 1
+    encode_last_dic[:esc] ||= 1
+    total = 0
     count_sum = 0
+    escape_count_sum = 0
     hit = false
     encode_last_dic.each do |k, v|
       if !exclusion.include?(k)
-        total += v
-        exclusion << k
+        total += (v-1)
+        exclusion << k if k != :esc
+        escape_count_sum = count_sum if k == :esc
         if !hit
-          if k == last && v > 1
+          if k == last && v > @symbol_init
             hit = true
           else
-            count_sum += v
+            count_sum += v - @symbol_init
           end
         end
       end
     end
 
     if hit
-      f = encode_last_dic[last] - 1
-      encode_last_dic[last] += 1 if update
+      f = encode_last_dic[last] - @symbol_init
+      encode_last_dic[last] += @symbol_inc if update
     else
-      encode_last_dic[last] = encode_last_dic[last] ? 2:1 if update
-      f = @esc
-      @esc += 1 if encode_last_dic[last] == 1
+      if encode_last_dic[last]
+        encode_last_dic[last] += @symbol_inc if update
+      else
+        encode_last_dic[last] = @symbol_init if update
+      end
+      f = encode_last_dic[:esc] ==  1? 1 :encode_last_dic[:esc] - 1
+      encode_last_dic[:esc] += @escape_inc
+      count_sum = escape_count_sum
     end
-
+    total = 1 if total == 0
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     bin = rc.encode_shift(bin)
     [bin,hit]
   end
-
 end
 
 
@@ -468,7 +436,6 @@ class PPMC < NgramTableFromFile
         end
       end
     end
- #   total += @esc
 
     if hit
       f = encode_last_dic[last]
@@ -532,6 +499,26 @@ class PPMC < NgramTableFromFile
   end
 end
 
+class PPMA < PPMC
+  def initialize(file = nil,n = nil)
+    super(file,n)
+    @symbol_inc = 1
+    @symbol_init = 1
+    @escape_inc = 0
+    @escape_init = 1
+  end
+end
+
+
+class PPMD < PPMC
+  def initialize(file = nil,n = nil)
+    super(file,n)
+    @symbol_inc = 2
+    @symbol_init = 2
+    @escape_inc = 1
+    @escape_init = 1
+  end
+end
 
 def letter_table(str)
   counts = {}

@@ -26,10 +26,14 @@ opts.on("--rank[=path]") { |v| $show_ranks = true , $ranks_file = v}
 opts.on("--lz78[=path]") { |v| $show_lz78 = true , $lz78_file = v}
 opts.on("--nonupdate") { |v| $nonupdate = true}
 opts.on("--esc") { |v| $esc = v.to_i}
+opts.on("--ppma") { |v| $method = PPMA}
+opts.on("--ppmb") { |v| $method = PPMB}
+opts.on("--ppmd") { |v| $method = PPMD}
 opts.on("--maxn[=value]") { |v| $max_n = v.to_i}
 opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}
 opts.on("--ipath[=path]") { |v| $ipath = v}
 opts.on("--opath[=path]") { |v| $opath = v}
+opts.on("--benchmark") { |v| $benchmark = true}
 opts.parse!(ARGV)
 
 $is_db = config[:d] != nil || ENV['DB'] == 'true'
@@ -63,7 +67,8 @@ class NgramCompression
     else
       bin = ppm_compress(words)
     end
-    puts "#{$targetfile} :#{(str.length).to_s_comma} -> #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)"
+    puts "#{$targetfile} :#{(str.length).to_s_comma} -> #{(bin.bit_length / 8).to_s_comma} byte (#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}%)" unless $benchmark
+    puts "#{$targetfile}\t#{(str.length)}\t#{(bin.bit_length / 8)}\t#{(((bin.bit_length / 8.0) / str.length ) * 100.0)}" if $benchmark
     bin
   end
 
@@ -106,9 +111,11 @@ class NgramCompression
   def ppm_table(path = nil)
     max_n = $max_n || 5
     max_char_n = $max_char_n || 5
-    ngrams = max_n.downto(1).map {|i| PPMC.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
+    method = $method || PPMC
+    puts method.name if $info
+    ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
     ngrams[max_n - 1].encode_table["\x00"] ||= 1 if ngrams[max_n - 1]
-    char_ngrams = max_char_n.downto(1).map {|i| PPMC.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
+    char_ngrams = max_char_n.downto(1).map {|i| method.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
     char_ngrams[max_char_n - 1].encode_table[""] ||= 1
     [ngrams,char_ngrams]
@@ -147,11 +154,12 @@ class NgramCompression
     bin = rc.finish(bin)
     cbin = char_rc.finish(cbin)
 
-    ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
-    char_ngrams.each {|n| n.print_rate} if $info
+    #ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
+    #print "\n" if $info
+    #char_ngrams.each {|n| n.print_rate} if $info
     ngrams.each {|n| n.write("#{$opath}/word#{n.n}.tsv")} if $opath
     char_ngrams.each {|n| n.write("#{$opath}/char#{n.n}.tsv")} if $opath
-    puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte")
+    puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte") if $info
     result = 1
     result = omega(result,bin.bit_length)
     result = (result << bin.bit_length) + bin

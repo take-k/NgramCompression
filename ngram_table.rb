@@ -514,14 +514,11 @@ class PPMCopt < NgramTableFromFile
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
 
-    bit = encode_last_dic[:bit]
-
     if encode_last_dic[:esc] == nil
-      i = bit.count
-      encode_last_dic[:esc] = i
-      bit << 0
-      add( bit, i, @escape_init)
+      update_freq(words,:esc)
     end
+
+    bit = encode_last_dic[:bit]
 
     mid = 1
     while mid < (bit.count / 2.0)
@@ -580,13 +577,18 @@ class PPMCopt < NgramTableFromFile
 
   def update_freq(pre,symbol,esc = false)
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    encode_last_dic[:bit] ||= [0]
-    index = encode_last_dic[:bit].count
+
+    if encode_last_dic[:bit] == nil
+      encode_last_dic[:bit] = [0] * (2 ** 12)
+      encode_last_dic[:bit_count] = 1
+    end
+
     if encode_last_dic[symbol]
       add(encode_last_dic[:bit], encode_last_dic[symbol], @symbol_inc)
     else
+      index = encode_last_dic[:bit_count]
       encode_last_dic[symbol] = index
-      encode_last_dic[:bit] << 0
+      encode_last_dic[:bit_count] += 1
       add(encode_last_dic[:bit], index, @symbol_init)
     end
   end

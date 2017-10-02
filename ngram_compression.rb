@@ -111,7 +111,7 @@ class NgramCompression
   def ppm_table(path = nil)
     max_n = $max_n || 5
     max_char_n = $max_char_n || 5
-    method = $method || PPMC
+    method = $method || PPMCopt
     puts method.name if $info
     ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
     ngrams[max_n - 1].update_freq([],"\x00")

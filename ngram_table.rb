@@ -499,6 +499,100 @@ class PPMC < NgramTableFromFile
   end
 end
 
+class PPMCopt < NgramTableFromFile
+  def initialize(file = nil,n = nil)
+    super(file,n)
+    @symbol_inc = 1
+    @symbol_init = 1
+    @escape_inc = 1
+    @escape_init = 1
+    @index_table = {}
+  end
+
+  def freq(rc,exclusion,bin,keywords,update = false)
+    words = keywords[0,keywords.size-1]
+    last = keywords[-1]
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+
+    bit = encode_last_dic[:bit]
+
+    if encode_last_dic[:esc] == nil
+      i = bit.count
+      encode_last_dic[:esc] = i
+      bit << 0
+      add( bit, i, @escape_init)
+    end
+
+    mid = 1
+    while mid < (bit.count / 2.0)
+      mid <<= 1
+    end
+    total = bit[mid]
+    escape_count_sum = sum( bit, encode_last_dic[:esc])
+    count_sum = 0
+
+    if encode_last_dic[last]
+      f = select( bit,encode_last_dic[last])
+      count_sum = sum( bit, encode_last_dic[last])
+      hit = true
+    else
+      f = select( bit,encode_last_dic[:esc])
+      add( bit, encode_last_dic[:esc], @escape_inc)
+      count_sum = escape_count_sum
+      hit = false
+    end
+    update_freq(words, last) if update
+
+    rc.low += rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    bin = rc.encode_shift(bin)
+    [bin,hit]
+  end
+
+  def select(bit, i)
+    value = bit[i]
+    if i > 0 && i & 1 == 0
+      p = i & (i - 1)
+      i -= 1
+      while i != p
+        value -= bit[i]
+        i = i & (i - 1)
+      end
+    end
+    value
+  end
+
+  def add(bit, i, x)
+    while (i < bit.count)
+      bit[i] += x
+      i += i & -i
+    end
+  end
+
+  def sum( bit, i)
+    s = 0
+    while i > 0
+      s += bit[i]
+      i -= i & -i
+    end
+    s
+  end
+
+  def update_freq(pre,symbol,esc = false)
+    encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    encode_last_dic[:bit] ||= [0]
+    index = encode_last_dic[:bit].count
+    if encode_last_dic[symbol]
+      add(encode_last_dic[:bit], encode_last_dic[symbol], @symbol_inc)
+    else
+      encode_last_dic[symbol] = index
+      encode_last_dic[:bit] << 0
+      add(encode_last_dic[:bit], index, @symbol_init)
+    end
+  end
+end
+
+
 class PPMA < PPMC
   def initialize(file = nil,n = nil)
     super(file,n)

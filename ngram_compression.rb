@@ -114,10 +114,10 @@ class NgramCompression
     method = $method || PPMC
     puts method.name if $info
     ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
-    ngrams[max_n - 1].encode_table["\x00"] ||= 1 if ngrams[max_n - 1]
+    ngrams[max_n - 1].update_freq([],"\x00")
     char_ngrams = max_char_n.downto(1).map {|i| method.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
-    (0..255).each{|i| char_ngrams[max_char_n - 1].encode_table[i.chr] ||= 1}
-    char_ngrams[max_char_n - 1].encode_table[""] ||= 1
+    (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr)}
+    char_ngrams[max_char_n - 1].update_freq([],"")
     [ngrams,char_ngrams]
   end
 

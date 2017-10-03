@@ -515,18 +515,13 @@ class PPMCopt < NgramTableFromFile
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
 
     if encode_last_dic[:esc] == nil
-      update_freq(words,:esc)
+      update_freq_by_dic(encode_last_dic,:esc)
     end
 
     bit = encode_last_dic[:bit]
 
-    mid = 1
-    while mid < (bit.count / 2.0)
-      mid <<= 1
-    end
-    total = bit[mid]
+    total = bit[encode_last_dic[:bit_count_max]]
     escape_count_sum = sum( bit, encode_last_dic[:esc])
-    count_sum = 0
 
     if encode_last_dic[last]
       f = select( bit,encode_last_dic[last])
@@ -534,11 +529,11 @@ class PPMCopt < NgramTableFromFile
       hit = true
     else
       f = select( bit,encode_last_dic[:esc])
-      add( bit, encode_last_dic[:esc], @escape_inc)
+      update_freq_by_dic(encode_last_dic, :esc)
       count_sum = escape_count_sum
       hit = false
     end
-    update_freq(words, last) if update
+    update_freq_by_dic(encode_last_dic, last) if update
 
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
@@ -577,19 +572,27 @@ class PPMCopt < NgramTableFromFile
 
   def update_freq(pre,symbol,esc = false)
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    update_freq_by_dic( encode_last_dic, symbol, esc)
+  end
 
+  def update_freq_by_dic(encode_last_dic,symbol,esc = false)
     if encode_last_dic[:bit] == nil
-      encode_last_dic[:bit] = [0] * (2 ** 12)
-      encode_last_dic[:bit_count] = 1
+      encode_last_dic[:bit] = [0] * 2
+      encode_last_dic[:bit_count] = 0 #BITノードの数
+      encode_last_dic[:bit_count_max] = 1 #BITの最大値
     end
 
     if encode_last_dic[symbol]
       add(encode_last_dic[:bit], encode_last_dic[symbol], @symbol_inc)
     else
-      index = encode_last_dic[:bit_count]
-      encode_last_dic[symbol] = index
       encode_last_dic[:bit_count] += 1
-      add(encode_last_dic[:bit], index, @symbol_init)
+      encode_last_dic[symbol] = encode_last_dic[:bit_count]
+      if encode_last_dic[:bit_count] > encode_last_dic[:bit_count_max]
+        encode_last_dic[:bit].concat(Array.new( encode_last_dic[:bit_count_max], 0))
+        encode_last_dic[:bit][encode_last_dic[:bit_count_max] << 1]  = encode_last_dic[:bit][encode_last_dic[:bit_count_max]]
+        encode_last_dic[:bit_count_max] <<= 1
+      end
+      add(encode_last_dic[:bit], encode_last_dic[:bit_count], @symbol_init)
     end
   end
 end

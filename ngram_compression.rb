@@ -128,10 +128,10 @@ class NgramCompression
 
     ngrams,char_ngrams = ppm_table($ipath)
     rc = RangeCoder.new
-    exclusion = Set.new
+    exclusion = Array.new
 
     char_rc = RangeCoder.new
-    char_exclusion = Set.new
+    char_exclusion = Array.new
 
     words << "\x00"
     words.each_with_index do |word,i|

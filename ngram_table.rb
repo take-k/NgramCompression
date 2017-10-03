@@ -506,7 +506,6 @@ class PPMCopt < NgramTableFromFile
     @symbol_init = 1
     @escape_inc = 1
     @escape_init = 1
-    @index_table = {}
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
@@ -514,7 +513,7 @@ class PPMCopt < NgramTableFromFile
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
 
-    if encode_last_dic[:esc] == nil
+    if encode_last_dic[:esc] == nil # init
       update_freq_by_dic(encode_last_dic,:esc)
     end
 
@@ -527,12 +526,28 @@ class PPMCopt < NgramTableFromFile
       f = select( bit,encode_last_dic[last])
       count_sum = sum( bit, encode_last_dic[last])
       hit = true
+      target = encode_last_dic[last]
     else
       f = select( bit,encode_last_dic[:esc])
       update_freq_by_dic(encode_last_dic, :esc)
       count_sum = escape_count_sum
       hit = false
+      target = encode_last_dic[:esc]
     end
+    if exclusion
+      exclusion.each do |ex|
+        if encode_last_dic[ex] && ex != :bit && ex !=:bit_count && ex !=:bit_count_max && ex !=:esc
+          ef = select(bit, encode_last_dic[ex])
+          count_sum -= ef if target > encode_last_dic[ex]
+          total -= ef
+        end
+      end
+      if !hit
+        exclusion.concat(encode_last_dic.keys)
+        exclusion.uniq!
+      end
+    end
+
     update_freq_by_dic(encode_last_dic, last) if update
 
     rc.low += rc.range * count_sum / total
@@ -587,7 +602,7 @@ class PPMCopt < NgramTableFromFile
     else
       encode_last_dic[:bit_count] += 1
       encode_last_dic[symbol] = encode_last_dic[:bit_count]
-      if encode_last_dic[:bit_count] > encode_last_dic[:bit_count_max]
+      if encode_last_dic[:bit_count] > encode_last_dic[:bit_count_max] #BIT拡大
         encode_last_dic[:bit].concat(Array.new( encode_last_dic[:bit_count_max], 0))
         encode_last_dic[:bit][encode_last_dic[:bit_count_max] << 1]  = encode_last_dic[:bit][encode_last_dic[:bit_count_max]]
         encode_last_dic[:bit_count_max] <<= 1

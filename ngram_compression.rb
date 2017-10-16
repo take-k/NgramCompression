@@ -41,6 +41,7 @@ $ngramfile = ARGV[1] || 'n-grams/w2-s.tsv'
 $dbname = ARGV[1] || 'google2gram'
 $targetfile = ARGV[0] || 'cantrbry/alice29.txt'
 $n = 2
+$method ||= PPMCopt
 
 class NgramCompression
   include NaiveCompression
@@ -128,10 +129,11 @@ class NgramCompression
 
     ngrams,char_ngrams = ppm_table($ipath)
     rc = RangeCoder.new
-    exclusion = Array.new
+    exclusion_collection = $method == PPMCopt ? Array : Set
+    exclusion = exclusion_collection.new
 
     char_rc = RangeCoder.new
-    char_exclusion = Array.new
+    char_exclusion = exclusion_collection.new
 
     words << "\x00"
     words.each_with_index do |word,i|

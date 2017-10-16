@@ -28,6 +28,7 @@ opts.on("--nonupdate") { |v| $nonupdate = true}
 opts.on("--esc") { |v| $esc = v.to_i}
 opts.on("--ppma") { |v| $method = PPMA}
 opts.on("--ppmb") { |v| $method = PPMB}
+opts.on("--ppmc") { |v| $method = PPMC}
 opts.on("--ppmd") { |v| $method = PPMD}
 opts.on("--maxn[=value]") { |v| $max_n = v.to_i}
 opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}

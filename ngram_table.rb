@@ -556,6 +556,51 @@ class PPMCopt < NgramTableFromFile
     [bin,hit]
   end
 
+  def symbol(rc,exclusion,bin,length,pre_words,update = false)
+    encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+
+    if encode_last_dic[:esc] == nil # init
+      update_freq_by_dic(encode_last_dic,:esc)
+    end
+
+    def search(encode_last_dic,w)
+      bit = encode_last_dic[:bit]
+      return 0 if w < 0
+      index = 0
+      child = encode_last_dic[:bit_count_max] / 2
+      while child > 0
+        if index + child < encode_last_dic[:bit_count] && bit[index + child] < w
+          w -= bit[index + child]
+          index += child
+        end
+      end
+      return index + 1
+    end
+
+    bit = encode_last_dic[:bit]
+
+    total = bit[encode_last_dic[:bit_count_max]]
+
+    rc.low * (rc.range / total)
+    # if encode_last_dic[last]
+    #   f = select( bit,encode_last_dic[last])
+    #   count_sum = sum( bit, encode_last_dic[last])
+    #   hit = true
+    #   target = encode_last_dic[last]
+    # else
+    #   f = select( bit,encode_last_dic[:esc])
+    #   update_freq_by_dic(encode_last_dic, :esc)
+    #   count_sum = escape_count_sum
+    #   hit = false
+    #   target = encode_last_dic[:esc]
+    # end
+
+    rc.low -= rc.range * count_sum / total
+    rc.range = rc.range * f / total
+    length = rc.decode_shift(bin,length)
+    [last,length]
+  end
+
   def select(bit, i)
     value = bit[i]
     if i > 0 && i & 1 == 0

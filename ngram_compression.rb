@@ -319,10 +319,11 @@ if $info
   }
 
   puts Benchmark.measure {
-    ngram.decode(bin) if $test
+    ngram.decode(bin)
     puts Benchmark::CAPTION
   } if $test
 
 else
   bin = ngram.compress $targetfile #cantrbry/alice29.txt
+  ngram.decode(bin) if $test
 end

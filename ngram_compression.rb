@@ -30,6 +30,7 @@ opts.on("--ppma") { |v| $method = PPMA}
 opts.on("--ppmb") { |v| $method = PPMB}
 opts.on("--ppmc") { |v| $method = PPMC}
 opts.on("--ppmd") { |v| $method = PPMD}
+opts.on("--nonexclusion") { |v| $nonexclusion = true}
 opts.on("--maxn[=value]") { |v| $max_n = v.to_i}
 opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}
 opts.on("--ipath[=path]") { |v| $ipath = v}
@@ -131,14 +132,14 @@ class NgramCompression
     ngrams,char_ngrams = ppm_table($ipath)
     rc = RangeCoder.new
     exclusion_collection = $method == PPMCopt ? Array : Set
-    exclusion = exclusion_collection.new
+    exclusion = exclusion_collection.new unless $nonexclusion
 
     char_rc = RangeCoder.new
-    char_exclusion = exclusion_collection.new
+    char_exclusion = exclusion_collection.new unless $nonexclusion
 
     words << "\x00"
     words.each_with_index do |word,i|
-      exclusion.clear
+      exclusion.clear unless $nonexclusion
       hit = ngrams.any? do |ngram|
         bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],update) if i >= ngram.n - 1
         exist
@@ -146,7 +147,7 @@ class NgramCompression
       if !hit
         chars = word.chars << "\x00" #終端文字
         chars.each_with_index do |char,i|
-          char_exclusion.clear
+          char_exclusion.clear unless $nonexclusion
           char_ngrams.any? do |char_ngram|
             cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(i - (char_ngram.n - 1))..i],update) if i >= char_ngram.n - 1
             exist
@@ -177,9 +178,11 @@ class NgramCompression
     ngrams,char_ngrams = ppm_table($ipath)
 
     rc = RangeCoder.new
-    exclusion = Set.new
+    exclusion_collection = $method == PPMCopt ? Array : Set
+    exclusion = exclusion_collection.new unless $nonexclusion
+
     char_rc = RangeCoder.new
-    char_exclusion = Set.new
+    char_exclusion = exclusion_collection.new unless $nonexclusion
 
     total_length = bin.bit_length - 1
     size,length = decode_omega(bin,total_length)
@@ -194,7 +197,7 @@ class NgramCompression
     words = []
     i = 0
     while(true)
-      exclusion.clear
+      exclusion.clear unless $nonexclusion
       esc_ngrams = []
       word = ngrams.reduce(nil) do |symbol, ngram|
         if i >= ngram.n - 1
@@ -210,7 +213,7 @@ class NgramCompression
         j = 0
         pre_chars = []
         while true
-          char_exclusion.clear
+          char_exclusion.clear unless $nonexclusion
           esc_char_ngrams = []
           char = char_ngrams.reduce(nil) do |symbol,char_ngram|
             if j >= char_ngram.n - 1

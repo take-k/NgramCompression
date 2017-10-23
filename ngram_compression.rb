@@ -117,7 +117,7 @@ class NgramCompression
     method = $method || PPMCopt
     puts method.name if $info
     ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
-    ngrams[max_n - 1].update_freq([],"\x00")
+    ngrams[max_n - 1].update_freq([],"\x00") if max_n > 0
     char_ngrams = max_char_n.downto(1).map {|i| method.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
     (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr)}
     char_ngrams[max_char_n - 1].update_freq([],"")
@@ -138,7 +138,7 @@ class NgramCompression
     char_exclusion = exclusion_collection.new unless $nonexclusion
 
     words << "\x00"
-    words.each_with_index do |word,i|
+      words.each_with_index do |word,i|
       exclusion.clear unless $nonexclusion
       hit = ngrams.any? do |ngram|
         bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],update) if i >= ngram.n - 1

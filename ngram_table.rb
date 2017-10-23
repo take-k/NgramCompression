@@ -573,6 +573,7 @@ class PPMCopt < NgramTableFromFile
           w -= bit[index + child]
           index += child
         end
+        child >>= 1
       end
       return index + 1
     end

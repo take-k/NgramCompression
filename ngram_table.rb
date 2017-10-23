@@ -580,20 +580,10 @@ class PPMCopt < NgramTableFromFile
     bit = encode_last_dic[:bit]
 
     total = bit[encode_last_dic[:bit_count_max]]
-
-    rc.low * (rc.range / total)
-    # if encode_last_dic[last]
-    #   f = select( bit,encode_last_dic[last])
-    #   count_sum = sum( bit, encode_last_dic[last])
-    #   hit = true
-    #   target = encode_last_dic[last]
-    # else
-    #   f = select( bit,encode_last_dic[:esc])
-    #   update_freq_by_dic(encode_last_dic, :esc)
-    #   count_sum = escape_count_sum
-    #   hit = false
-    #   target = encode_last_dic[:esc]
-    # end
+    count_sum = rc.low * total / rc.range
+    bit_index = search(encode_last_dic,count_sum)
+    f = select(bit,bit_index)
+    last = encode_last_dic[:decode][bit_index]
 
     rc.low -= rc.range * count_sum / total
     rc.range = rc.range * f / total
@@ -635,11 +625,12 @@ class PPMCopt < NgramTableFromFile
     update_freq_by_dic( encode_last_dic, symbol, esc)
   end
 
-  def update_freq_by_dic(encode_last_dic,symbol,esc = false)
+  def update_freq_by_dic(encode_last_dic,symbol,esc = false, decode = false)
     if encode_last_dic[:bit] == nil
       encode_last_dic[:bit] = [0] * 2
       encode_last_dic[:bit_count] = 0 #BITノードの数
       encode_last_dic[:bit_count_max] = 1 #BITの最大値
+      encode_last_dic[:decode] = [] if symbol
     end
 
     if encode_last_dic[symbol]
@@ -647,6 +638,10 @@ class PPMCopt < NgramTableFromFile
     else
       encode_last_dic[:bit_count] += 1
       encode_last_dic[symbol] = encode_last_dic[:bit_count]
+      if decode
+        dic = encode_last_dic[:decode]
+        dic[encode_last_dic[:bit_count]] = symbol
+      end
       if encode_last_dic[:bit_count] > encode_last_dic[:bit_count_max] #BIT拡大
         encode_last_dic[:bit].concat(Array.new( encode_last_dic[:bit_count_max], 0))
         encode_last_dic[:bit][encode_last_dic[:bit_count_max] << 1]  = encode_last_dic[:bit][encode_last_dic[:bit_count_max]]

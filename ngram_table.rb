@@ -342,7 +342,7 @@ class NgramTableFromFile < NgramTable
     [last,length]
   end
 
-  def update_freq(pre,symbol)
+  def update_freq(pre,symbol,decode = false)
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     encode_last_dic[symbol] = 0 unless encode_last_dic[symbol]
     encode_last_dic[symbol] += 1
@@ -489,7 +489,7 @@ class PPMC < NgramTableFromFile
     [last,length]
   end
 
-  def update_freq(pre,symbol,esc = false)
+  def update_freq(pre,symbol,decode = false)
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     if encode_last_dic[symbol]
       encode_last_dic[symbol] += @symbol_inc
@@ -524,7 +524,7 @@ class PPMCopt < NgramTableFromFile
 
     if encode_last_dic[last]
       f = select( bit,encode_last_dic[last])
-      count_sum = sum( bit, encode_last_dic[last])
+      count_sum = sum( bit, encode_last_dic[last]) #自分の頻度を含んでしまう
       hit = true
       target = encode_last_dic[last]
     else
@@ -581,7 +581,7 @@ class PPMCopt < NgramTableFromFile
     bit = encode_last_dic[:bit]
 
     total = bit[encode_last_dic[:bit_count_max]]
-    count_sum = rc.low * total / rc.range
+    count_sum = (rc.low * total / rc.range.to_f).ceil
     bit_index = search(encode_last_dic,count_sum)
     f = select(bit,bit_index)
     last = encode_last_dic[:decode][bit_index]
@@ -621,12 +621,12 @@ class PPMCopt < NgramTableFromFile
     s
   end
 
-  def update_freq(pre,symbol,esc = false)
+  def update_freq(pre,symbol,decode = false)
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-    update_freq_by_dic( encode_last_dic, symbol, esc)
+    update_freq_by_dic( encode_last_dic, symbol, decode)
   end
 
-  def update_freq_by_dic(encode_last_dic,symbol,esc = false, decode = false)
+  def update_freq_by_dic(encode_last_dic,symbol, decode = false)
     if encode_last_dic[:bit] == nil
       encode_last_dic[:bit] = [0] * 2
       encode_last_dic[:bit_count] = 0 #BITノードの数

@@ -67,7 +67,6 @@ class PPMC < NgramTableFromFile
     encode_last_dic.each do |k, v|
       if !exclusion.include?(k)
         if !hit
-          #if rc.code < rc.low + (rc.range * (count_sum + v) / total)
           if rc.low < (rc.range * (count_sum + v) / total)
             hit = true
             last = k if k != :esc

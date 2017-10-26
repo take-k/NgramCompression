@@ -1,6 +1,5 @@
-require './ngram_table'
 require './encode.rb'
-require './ppmc'
+require './ppmc_opt'
 require 'test/unit'
 
 def encode_test(table,word)
@@ -45,10 +44,14 @@ class TestPPMC < Test::Unit::TestCase
   end
 
   def test_continious
-    table = ['a','b']
-    word = "ab".split("")
-    bin = encode_test(table,word)
-    assert_equal(word,decode_test(bin, table,word)
-    )
+    alphabets = ['a','b','c']
+    1.upto(3) do |time|
+      alphabets.repeated_permutation(time) do |chars|
+        bin = encode_test(alphabets,chars)
+        assert_equal(chars,decode_test(bin, alphabets,chars)
+      )
+      end
+    end
   end
+
 end

@@ -64,28 +64,24 @@ class PPMCopt < NgramTableFromFile
       update_freq_by_dic(encode_last_dic,:esc)
     end
 
-    def search(encode_last_dic,w)
-      bit = encode_last_dic[:bit]
-      return 0 if w < 0
-      index = 0
-      child = encode_last_dic[:bit_count_max] / 2
-      while child > 0
-        if index + child < encode_last_dic[:bit_count] && bit[index + child] <= w
-          w -= bit[index + child]
-          index += child
-        end
-        child >>= 1
-      end
-      return index + 1
-    end
-
     bit = encode_last_dic[:bit]
-
     total = bit[encode_last_dic[:bit_count_max]]
-    bit_index = search(encode_last_dic,rc.low * total / rc.range)
-    f = select(bit,bit_index)
-    count_sum = sum(bit , bit_index) - f
-    last = encode_last_dic[:decode][bit_index]
+
+    count_sum = 0
+    index = 0
+    child = encode_last_dic[:bit_count_max] / 2
+    while child > 0
+      if index + child < encode_last_dic[:bit_count] && rc.low >= (rc.range * (count_sum + bit[index + child])) / total
+        count_sum += bit[index + child]
+        index += child
+      end
+      child >>= 1
+    end
+    index += 1
+
+    #index = search(encode_last_dic,rc.low * total / rc.range)
+    f = select(bit,index)
+    last = encode_last_dic[:decode][index]
 
     rc.low -= rc.range * count_sum / total
     rc.range = rc.range * f / total

@@ -25,13 +25,13 @@ class PPMCopt < NgramTableFromFile
 
     if encode_last_dic[last]
       f = select( bit,encode_last_dic[last])
-      count_sum = sum( bit, encode_last_dic[last]) #自分の頻度を含んでしまう
+      count_sum = sum( bit, encode_last_dic[last]) - f
       hit = true
       target = encode_last_dic[last]
     else
       f = select( bit,encode_last_dic[:esc])
       update_freq_by_dic(encode_last_dic, :esc)
-      count_sum = escape_count_sum
+      count_sum = escape_count_sum - f
       hit = false
       target = encode_last_dic[:esc]
     end
@@ -70,7 +70,7 @@ class PPMCopt < NgramTableFromFile
       index = 0
       child = encode_last_dic[:bit_count_max] / 2
       while child > 0
-        if index + child < encode_last_dic[:bit_count] && bit[index + child] < w
+        if index + child < encode_last_dic[:bit_count] && bit[index + child] <= w
           w -= bit[index + child]
           index += child
         end
@@ -82,9 +82,9 @@ class PPMCopt < NgramTableFromFile
     bit = encode_last_dic[:bit]
 
     total = bit[encode_last_dic[:bit_count_max]]
-    count_sum = (rc.low * total / rc.range.to_f).ceil
-    bit_index = search(encode_last_dic,count_sum)
+    bit_index = search(encode_last_dic,rc.low * total / rc.range)
     f = select(bit,bit_index)
+    count_sum = sum(bit , bit_index) - f
     last = encode_last_dic[:decode][bit_index]
 
     rc.low -= rc.range * count_sum / total

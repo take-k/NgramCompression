@@ -1,4 +1,5 @@
 require "./ngram_table"
+require './binary_indexed_tree'
 
 class PPMCopt < NgramTableFromFile
   def initialize(file = nil,n = nil)
@@ -20,16 +21,16 @@ class PPMCopt < NgramTableFromFile
 
     bit = encode_last_dic[:bit]
 
-    total = bit[encode_last_dic[:bit_count_max]]
-    escape_count_sum = sum( bit, encode_last_dic[:esc])
+    total = bit.sum_all
+    escape_count_sum = bit.sum(encode_last_dic[:esc])
 
     if encode_last_dic[last]
-      f = select( bit,encode_last_dic[last])
-      count_sum = sum( bit, encode_last_dic[last]) - f
+      f = bit.select(encode_last_dic[last])
+      count_sum = bit.sum(encode_last_dic[last]) - f
       hit = true
       target = encode_last_dic[last]
     else
-      f = select( bit,encode_last_dic[:esc])
+      f = bit.select( encode_last_dic[:esc])
       update_freq_by_dic(encode_last_dic, :esc)
       count_sum = escape_count_sum - f
       hit = false
@@ -37,8 +38,8 @@ class PPMCopt < NgramTableFromFile
     end
     if exclusion
       exclusion.each do |ex|
-        if encode_last_dic[ex] && ex != :bit && ex !=:bit_count && ex !=:bit_count_max && ex !=:esc
-          ef = select(bit, encode_last_dic[ex])
+        if encode_last_dic[ex] && ex != :bit &&  ex !=:esc
+          ef = bit.select(encode_last_dic[ex])
           count_sum -= ef if target > encode_last_dic[ex]
           total -= ef
         end
@@ -65,57 +66,16 @@ class PPMCopt < NgramTableFromFile
     end
 
     bit = encode_last_dic[:bit]
-    total = bit[encode_last_dic[:bit_count_max]]
+    total = bit.sum_all
 
-    count_sum = 0
-    index = 0
-    child = encode_last_dic[:bit_count_max] / 2
-    while child > 0
-      if index + child < encode_last_dic[:bit_count] && rc.low >= (rc.range * (count_sum + bit[index + child])) / total
-        count_sum += bit[index + child]
-        index += child
-      end
-      child >>= 1
-    end
-    index += 1
-
-    #index = search(encode_last_dic,rc.low * total / rc.range)
-    f = select(bit,index)
+    index,count_sum = bit.search_range(rc.low,rc.range)
+    f = bit.select(index)
     last = encode_last_dic[:decode][index]
 
     rc.low -= rc.range * count_sum / total
     rc.range = rc.range * f / total
     length = rc.decode_shift(bin,length)
     [last,length]
-  end
-
-  def select(bit, i)
-    value = bit[i]
-    if i > 0 && i & 1 == 0
-      p = i & (i - 1)
-      i -= 1
-      while i != p
-        value -= bit[i]
-        i = i & (i - 1)
-      end
-    end
-    value
-  end
-
-  def add(bit, i, x)
-    while (i < bit.count)
-      bit[i] += x
-      i += i & -i
-    end
-  end
-
-  def sum( bit, i)
-    s = 0
-    while i > 0
-      s += bit[i]
-      i -= i & -i
-    end
-    s
   end
 
   def update_freq(pre,symbol,decode = false)
@@ -125,27 +85,17 @@ class PPMCopt < NgramTableFromFile
 
   def update_freq_by_dic(encode_last_dic,symbol, decode = false)
     if encode_last_dic[:bit] == nil
-      encode_last_dic[:bit] = [0] * 2
-      encode_last_dic[:bit_count] = 0 #BITノードの数
-      encode_last_dic[:bit_count_max] = 1 #BITの最大値
-      encode_last_dic[:decode] = [] if symbol
+      encode_last_dic[:bit] = BinaryIndexedTree.new
+      encode_last_dic[:decode] = [] if decode
     end
+    bit = encode_last_dic[:bit]
 
     if encode_last_dic[symbol]
-      add(encode_last_dic[:bit], encode_last_dic[symbol], @symbol_inc)
+      bit.update(encode_last_dic[symbol], @symbol_inc)
     else
-      encode_last_dic[:bit_count] += 1
-      encode_last_dic[symbol] = encode_last_dic[:bit_count]
-      if decode
-        dic = encode_last_dic[:decode]
-        dic[encode_last_dic[:bit_count]] = symbol
-      end
-      if encode_last_dic[:bit_count] > encode_last_dic[:bit_count_max] #BIT拡大
-        encode_last_dic[:bit].concat(Array.new( encode_last_dic[:bit_count_max], 0))
-        encode_last_dic[:bit][encode_last_dic[:bit_count_max] << 1]  = encode_last_dic[:bit][encode_last_dic[:bit_count_max]]
-        encode_last_dic[:bit_count_max] <<= 1
-      end
-      add(encode_last_dic[:bit], encode_last_dic[:bit_count], @symbol_init)
+      new_index = bit.add(@symbol_init)
+      encode_last_dic[symbol] = new_index
+      encode_last_dic[:decode][new_index] = symbol if decode
     end
   end
 end

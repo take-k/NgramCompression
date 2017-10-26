@@ -78,9 +78,9 @@ class NgramCompression
 
   def decode(bin ,file = 'decode.txt')
     if $is_db
-      ngram = NgramTableFromPg.new($dbname)
+      #ngram = NgramTableFromPg.new($dbname)
     else
-      ngram = NgramTableFromFile.new($ngramfile)
+      #ngram = NgramTableFromFile.new($ngramfile)
     end
 
     str = ''
@@ -96,7 +96,7 @@ class NgramCompression
       f.write(str)
     end
 
-    ngram.finish
+    #ngram.finish
   end
 
   def ngram_table()
@@ -118,10 +118,10 @@ class NgramCompression
     method = $method || PPMCopt
     puts method.name if $info
     ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
-    ngrams[max_n - 1].update_freq([],"\x00") if max_n > 0
+    ngrams[max_n - 1].update_freq([],"\x00", true) if max_n > 0
     char_ngrams = max_char_n.downto(1).map {|i| method.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
-    (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr)}
-    char_ngrams[max_char_n - 1].update_freq([],"")
+    (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr, true)}
+    char_ngrams[max_char_n - 1].update_freq([],"", true)
     [ngrams,char_ngrams]
   end
 
@@ -224,7 +224,7 @@ class NgramCompression
             end
           end
           esc_char_ngrams.each do |char_ngram|
-            char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char) if update #頻度表の更新
+            char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char ,true) if update #頻度表の更新
           end
           pre_chars << char
           pre_chars.shift if pre_chars.size >= char_ngrams.size
@@ -239,7 +239,7 @@ class NgramCompression
       end
 
       esc_ngrams.each do |ngram|
-        ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word) if update #頻度表の更新
+        ngram.update_freq(pre_words[pre_words.size - ngram.n + 1,ngram.n - 1], word, true) if update #頻度表の更新
       end
       pre_words << word
       pre_words.shift if pre_words.size >= ngrams.size

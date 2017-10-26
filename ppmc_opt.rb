@@ -62,7 +62,7 @@ class PPMCopt < NgramTableFromFile
     encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
 
     if encode_last_dic[:esc] == nil # init
-      update_freq_by_dic(encode_last_dic,:esc)
+      update_freq_by_dic(encode_last_dic,:esc,true)
     end
 
     bit = encode_last_dic[:bit]
@@ -71,6 +71,10 @@ class PPMCopt < NgramTableFromFile
     index,count_sum = bit.search_range(rc.low,rc.range)
     f = bit.select(index)
     last = encode_last_dic[:decode][index]
+    if last == :esc
+      update_freq_by_dic(encode_last_dic,:esc,true)
+      last= nil
+    end
 
     rc.low -= rc.range * count_sum / total
     rc.range = rc.range * f / total

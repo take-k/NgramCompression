@@ -414,6 +414,7 @@ class PPMC < NgramTableFromFile
   end
 
   def freq(rc,exclusion,bin,keywords,update = false)
+    exclusion ||= Set.new
     words = keywords[0,keywords.size-1]
     last = keywords[-1]
     encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
@@ -453,6 +454,7 @@ class PPMC < NgramTableFromFile
   end
 
   def symbol(rc,exclusion,bin,length,pre_words,update = false)
+    exclusion ||= Set.new
     encode_last_dic = pre_words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     encode_last_dic[:esc] ||= @escape_init
     count_sum = 0

@@ -6,7 +6,7 @@ require './ngram_table.rb'
 require './tools.rb'
 require './naive_compression'
 require './lz78_compression'
-require './ppmc'
+require './ppmc_opt'
 
 include Benchmark
 

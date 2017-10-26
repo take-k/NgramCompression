@@ -1,5 +1,6 @@
 require './ngram_table'
 require './encode.rb'
+require './ppmc'
 
 def encode_test(table,word)
   bin = 1

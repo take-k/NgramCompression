@@ -139,7 +139,7 @@ class NgramCompression
     char_exclusion = exclusion_collection.new unless $nonexclusion
 
     words << "\x00"
-      words.each_with_index do |word,i|
+    words.each_with_index do |word,i|
       exclusion.clear unless $nonexclusion
       hit = ngrams.any? do |ngram|
         bin,exist = ngram.freq(rc,exclusion,bin,words[(i - (ngram.n - 1))..i],update) if i >= ngram.n - 1

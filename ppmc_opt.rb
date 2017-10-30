@@ -65,7 +65,18 @@ class PPMCopt < NgramTableFromFile
       update_freq_by_dic(encode_last_dic,:esc,true)
     end
 
-    bit = encode_last_dic[:bit]
+    if exclusion
+      bit = encode_last_dic[:bit].clone
+      exclusion.each do |ex|
+        if encode_last_dic[ex] && ex != :bit &&  ex !=:esc && ex != :decode
+          ef = bit.select(encode_last_dic[ex])
+          bit.update(encode_last_dic[ex], -1 * ef)
+        end
+      end
+    else
+      bit = encode_last_dic[:bit]
+    end
+
     total = bit.sum_all
 
     index,count_sum = bit.search_range(rc.low,rc.range)
@@ -74,6 +85,11 @@ class PPMCopt < NgramTableFromFile
     if last == :esc
       update_freq_by_dic(encode_last_dic,:esc,true)
       last= nil
+    end
+
+    if exclusion && last == nil
+      exclusion.concat(encode_last_dic.keys)
+      exclusion.uniq!
     end
 
     rc.low -= rc.range * count_sum / total

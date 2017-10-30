@@ -77,3 +77,41 @@ class BinaryIndexedTree
   end
 end
 
+class BinaryIndexedTreeFreq < BinaryIndexedTree
+  attr_accessor :freq
+  def initialize
+    super
+    @freq = [0] * 2
+  end
+
+  def self.create_bit(bit)
+    new_bit = BinaryIndexedTreeFreq.new
+    new_bit.data = bit.data.clone
+    new_bit.count = bit.count
+    new_bit.count_max = bit.count_max
+    new_bit.freq = bit.freq.clone
+    new_bit
+  end
+
+  def update(i,x)
+    super
+    @freq[i] += x
+  end
+
+  def select(i)
+    @freq[i]
+  end
+
+  def add(x)
+    @count += 1
+    if @count > @count_max #BIT拡大
+      @data.concat(Array.new( @count_max, 0))
+      @freq.concat(Array.new( @count_max, 0))
+      temp = @count_max
+      @count_max <<= 1
+      @data[@count_max]  = @data[temp]
+    end
+    update(@count, x)
+    @count
+  end
+end

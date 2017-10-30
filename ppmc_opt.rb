@@ -66,7 +66,7 @@ class PPMCopt < NgramTableFromFile
     end
 
     if exclusion
-      bit = encode_last_dic[:bit].clone
+      bit = BinaryIndexedTree.create_bit(encode_last_dic[:bit])
       exclusion.each do |ex|
         if encode_last_dic[ex] && ex != :bit &&  ex !=:esc && ex != :decode
           ef = bit.select(encode_last_dic[ex])

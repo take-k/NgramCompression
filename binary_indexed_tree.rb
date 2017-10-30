@@ -1,10 +1,18 @@
 
 class BinaryIndexedTree
-  attr_reader :count,:count_maxt
+  attr_accessor :count,:count_max,:data
   def initialize
     @data = [0] * 2
     @count = 0 #BITノードの数
     @count_max = 1 #BITの最大値
+  end
+
+  def self.create_bit(bit)
+    new_bit = BinaryIndexedTree.new
+    new_bit.data = bit.data.clone
+    new_bit.count = bit.count
+    new_bit.count_max = bit.count_max
+    new_bit
   end
 
   def select( i)

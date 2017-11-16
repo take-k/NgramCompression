@@ -214,10 +214,7 @@ class NgramTableFromFile < NgramTable
         rank = row[-1].to_i
         last = words.pop
         @n = words.size unless @n
-        encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-        encode_last_dic[last] = rank
-        decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
-        decode_last_dic[rank] = last
+        set_freq(words,last, rank)
         @count += 1
       end
     end
@@ -227,6 +224,7 @@ class NgramTableFromFile < NgramTable
     return [[hash]] if i == 0
 
     hash.reduce([]) do |array,(k,v)|
+      next array if k == :bit
       k = $escaped_characters_invert[k] if $escaped_characters_invert[k]
       array.concat(list(v,i-1).map{|strs| [k].concat(strs)})
     end
@@ -346,6 +344,13 @@ class NgramTableFromFile < NgramTable
     encode_last_dic = pre.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
     encode_last_dic[symbol] = 0 unless encode_last_dic[symbol]
     encode_last_dic[symbol] += 1
+  end
+
+  def set_freq(words,last,freq ,decode = false)
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    encode_last_dic[last] = freq
+    decode_last_dic = words.inject(@decode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]} if decode
+    decode_last_dic[freq] = last if decode
   end
 end
 

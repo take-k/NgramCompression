@@ -103,7 +103,7 @@ class PPMCopt < NgramTableFromFile
     update_freq_by_dic( encode_last_dic, symbol, decode)
   end
 
-  def update_freq_by_dic(encode_last_dic,symbol, decode = false)
+  def update_freq_by_dic(encode_last_dic,symbol, decode = false ,inc = @symbol_inc , init = @symbol_init)
     if encode_last_dic[:bit] == nil
       encode_last_dic[:bit] = BinaryIndexedTree.new
       encode_last_dic[:decode] = [] if decode
@@ -111,12 +111,18 @@ class PPMCopt < NgramTableFromFile
     bit = encode_last_dic[:bit]
 
     if encode_last_dic[symbol]
-      bit.update(encode_last_dic[symbol], @symbol_inc)
+      bit.update(encode_last_dic[symbol], inc)
     else
-      new_index = bit.add(@symbol_init)
+      new_index = bit.add(init)
       encode_last_dic[symbol] = new_index
       encode_last_dic[:decode][new_index] = symbol if decode
     end
   end
+
+  def set_freq(words,last,freq ,decode = false)
+    encode_last_dic = words.inject(@encode_table){|d,key| d[key] == nil ? d[key] = {} : d[key]}
+    update_freq_by_dic(encode_last_dic,last,decode,freq,freq)
+  end
+
 end
 

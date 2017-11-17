@@ -8,6 +8,7 @@ require './naive_compression'
 require './lz78_compression'
 require './ppmc'
 require './ppmc_opt'
+require './freq_table'
 
 include Benchmark
 
@@ -32,6 +33,7 @@ opts.on("--ppma") { |v| $method = PPMA}
 opts.on("--ppmb") { |v| $method = PPMB}
 opts.on("--ppmc") { |v| $method = PPMC}
 opts.on("--ppmd") { |v| $method = PPMD}
+opts.on("--freqtable") { |v| $method = FreqTable}
 opts.on("--nonexclusion") { |v| $nonexclusion = true}
 opts.on("--maxn[=value]") { |v| $max_n = v.to_i}
 opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}

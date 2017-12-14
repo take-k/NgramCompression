@@ -43,6 +43,18 @@ class PPMC < NgramTableFromFile
       encode_last_dic[:esc] += @escape_inc
       count_sum = escape_count_sum
     end
+
+    if total >= 10 && @n != 1
+      encode_last_dic.each do |k, v|
+        if v == :esc
+          encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
+        else
+          encode_last_dic[k] >>= 2
+          encode_last_dic.delete(k) if encode_last_dic[k] == 0
+        end
+      end
+    end
+
     rc.low += rc.range * count_sum / total
     rc.range = rc.range * f / total
     bin = rc.encode_shift(bin)

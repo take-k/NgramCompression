@@ -175,10 +175,10 @@ class NgramCompression
       end
       if !hit
         chars = word.chars << "\x00" #終端文字
-        chars.each_with_index do |char,i|
+        chars.each_with_index do |char,j|
           char_exclusion.clear unless $nonexclusion
           char_hit = char_ngrams.any? do |char_ngram|
-            cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(i - (char_ngram.n - 1))..i],update) if i >= char_ngram.n - 1
+            cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(j - (char_ngram.n - 1))..j],update) if j >= char_ngram.n - 1
             exist
           end
           fail += 1 if char_hit == false

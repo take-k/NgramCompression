@@ -17,6 +17,10 @@ class PPMC < NgramTableFromFile
     @freq_delete = is_delete
   end
 
+  def set_end_symbol(symbol)
+    @end_symbol = symbol
+  end
+
   def freq(rc,exclusion,bin,keywords,update = false)
     exclusion ||= Set.new
     words = keywords[0,keywords.size-1]
@@ -55,7 +59,7 @@ class PPMC < NgramTableFromFile
 
     if @memory && total >= @memory
       encode_last_dic.each do |k, v|
-        if v == :esc
+        if k == :esc || k == @end_symbol
           encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
         else
           encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
@@ -119,7 +123,7 @@ class PPMC < NgramTableFromFile
     if decode
       if @memory && @total >= @memory
         encode_last_dic.each do |k, v|
-          if v == :esc
+          if k == :esc || k == @end_symbol
             encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
           else
             encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)

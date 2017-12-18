@@ -134,6 +134,7 @@ class NgramCompression
       ngram
     }
     ngrams[max_n - 1].update_freq([],"\x00", $test != nil) if max_n > 0
+    ngrams[max_n - 1].set_end_symbol("\x00") if max_n > 0 && method == PPMC
 
     char_ngrams = max_char_n.downto(1).map {|i|
       char_ngram = method.new(path ? "#{path}/char#{i}.tsv" : nil,i)

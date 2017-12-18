@@ -40,6 +40,8 @@ opts.on("--maxcharn[=value]") { |v| $max_char_n = v.to_i}
 opts.on("--ipath[=path]") { |v| $ipath = v}
 opts.on("--opath[=path]") { |v| $opath = v}
 opts.on("--benchmark") { |v| $benchmark = true}
+opts.on("--memory[=value]") { |v| $memory = v.to_i}
+
 opts.parse!(ARGV)
 
 $is_db = config[:d] != nil || ENV['DB'] == 'true'
@@ -121,7 +123,7 @@ class NgramCompression
     method = $method || PPMCopt
     puts method.name if $info
 
-    memory = 256
+    memory = $memory || 2**32
 
     ngrams = max_n.downto(1).map {|i|
       ngram = method.new(path ? "#{path}/word#{i}.tsv" : nil,i)

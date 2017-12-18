@@ -100,6 +100,7 @@ class PPMC < NgramTableFromFile
         exclusion << k if k != :esc
       end
     end
+    @total = total
 
     rc.low -= rc.range * count_sum / total
     rc.range = rc.range * f / total
@@ -114,6 +115,20 @@ class PPMC < NgramTableFromFile
     else
       encode_last_dic[symbol] = @symbol_init
     end
+
+    if decode
+      if @memory && @total >= @memory
+        encode_last_dic.each do |k, v|
+          if v == :esc
+            encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
+          else
+            encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
+            encode_last_dic.delete(k) if encode_last_dic[k] == 0
+          end
+        end
+      end
+    end
+
   end
 end
 

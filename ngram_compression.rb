@@ -120,11 +120,32 @@ class NgramCompression
     max_char_n = $max_char_n || 5
     method = $method || PPMCopt
     puts method.name if $info
-    ngrams = max_n.downto(1).map {|i| method.new(path ? "#{path}/word#{i}.tsv" : nil,i)}
+
+    memory = 256
+
+    ngrams = max_n.downto(1).map {|i|
+      ngram = method.new(path ? "#{path}/word#{i}.tsv" : nil,i)
+      if method == PPMC
+        ngram.set_memory(memory)
+        ngram.set_freq_delete(true)
+      end
+      ngram
+    }
     ngrams[max_n - 1].update_freq([],"\x00", $test != nil) if max_n > 0
-    char_ngrams = max_char_n.downto(1).map {|i| method.new(path ? "#{path}/char#{i}.tsv" : nil,i)}
+
+    char_ngrams = max_char_n.downto(1).map {|i|
+      char_ngram = method.new(path ? "#{path}/char#{i}.tsv" : nil,i)
+      if method == PPMC
+        char_ngram.set_memory(memory)
+        char_ngram.set_freq_delete(true)
+      end
+      char_ngram
+    }
     (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr, $test != nil)}
     char_ngrams[max_char_n - 1].update_freq([],"", $test != nil)
+    char_ngrams[max_char_n - 1].set_freq_delete(false) if method == PPMC
+    char_ngrams[max_char_n - 1].set_memory(memory + 256) if method == PPMC
+
     [ngrams,char_ngrams]
   end
 
@@ -141,6 +162,8 @@ class NgramCompression
     char_rc = RangeCoder.new
     char_exclusion = exclusion_collection.new unless $nonexclusion
 
+    fail = 0
+
     words << "\x00"
     words.each_with_index do |word,i|
       exclusion.clear unless $nonexclusion
@@ -152,10 +175,12 @@ class NgramCompression
         chars = word.chars << "\x00" #終端文字
         chars.each_with_index do |char,i|
           char_exclusion.clear unless $nonexclusion
-          char_ngrams.any? do |char_ngram|
+          char_hit = char_ngrams.any? do |char_ngram|
             cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(i - (char_ngram.n - 1))..i],update) if i >= char_ngram.n - 1
             exist
           end
+          fail += 1 if char_hit == false
+          #bin <<= 8 if char_hit == nil
         end
       end
     end
@@ -172,7 +197,7 @@ class NgramCompression
     result = omega(result,bin.bit_length)
     result = (result << bin.bit_length) + bin
     result = (result << cbin.bit_length) + cbin
-    result
+    result <<= (fail * 8)
   end
 
   def ppm_decompress(bin)

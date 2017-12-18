@@ -9,6 +9,14 @@ class PPMC < NgramTableFromFile
     @escape_init = 1
   end
 
+  def set_memory(memory)
+    @memory = memory
+  end
+
+  def set_freq_delete(is_delete)
+    @freq_delete = is_delete
+  end
+
   def freq(rc,exclusion,bin,keywords,update = false)
     exclusion ||= Set.new
     words = keywords[0,keywords.size-1]
@@ -44,12 +52,13 @@ class PPMC < NgramTableFromFile
       count_sum = escape_count_sum
     end
 
-    if total >= 10 && @n != 1
+
+    if @memory && total >= @memory
       encode_last_dic.each do |k, v|
         if v == :esc
           encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
         else
-          encode_last_dic[k] >>= 2
+          encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
           encode_last_dic.delete(k) if encode_last_dic[k] == 0
         end
       end

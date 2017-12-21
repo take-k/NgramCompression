@@ -153,6 +153,7 @@ class NgramCompression
   end
 
   def ppm_compress(words)
+    #1(word長さ:ω符号)1(word:RangeCode)1(char:RangeCode)
     update = $nonupdate ? false : true
     bin = 1 #head
     cbin = 1
@@ -190,17 +191,14 @@ class NgramCompression
     bin = rc.finish(bin)
     cbin = char_rc.finish(cbin)
 
-    #ngrams.each {|n| print "n = #{n.n} ";n.print_rate} if $info
-    #print "\n" if $info
-    #char_ngrams.each {|n| n.print_rate} if $info
     ngrams.each {|n| n.write("#{$opath}/word#{n.n}.tsv")} if $opath
     char_ngrams.each {|n| n.write("#{$opath}/char#{n.n}.tsv")} if $opath
     puts ("word:#{bin.bit_length / 8} byte char:#{cbin.bit_length / 8} byte") if $info
-    result = 1
-    result = omega(result,bin.bit_length)
-    result = (result << bin.bit_length) + bin
-    result = (result << cbin.bit_length) + cbin
-    result <<= (fail * 8)
+    result = 1 #0対策
+    result = omega(result,bin.bit_length) #wordの長さ
+    result = (result << bin.bit_length) + bin #word本体
+    result = (result << cbin.bit_length) + cbin #char本体
+    result <<= (fail * 8) #ascii code
   end
 
   def ppm_decompress(bin)
@@ -216,7 +214,7 @@ class NgramCompression
     char_rc = RangeCoder.new
     char_exclusion = exclusion_collection.new unless $nonexclusion
 
-    total_length = bin.bit_length - 1
+    total_length = bin.bit_length - 1 #先頭1ビットを抜く
     size,length = decode_omega(bin,total_length)
     clength = length - size
     length -= 1

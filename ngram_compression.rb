@@ -41,6 +41,7 @@ opts.on("--ipath[=path]") { |v| $ipath = v}
 opts.on("--opath[=path]") { |v| $opath = v}
 opts.on("--benchmark") { |v| $benchmark = true}
 opts.on("--memory[=value]") { |v| $memory = v.to_i}
+opts.on("--negative-order") { |v| $negative_order = true}
 
 opts.parse!(ARGV)
 
@@ -144,9 +145,11 @@ class NgramCompression
       end
       char_ngram
     }
-    (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr, $test != nil)}
-    char_ngrams[max_char_n - 1].update_freq([],"", $test != nil)
-    char_ngrams[max_char_n - 1].set_freq_delete(false) if method == PPMC
+    if !$negative_order
+      (0..255).each{|i| char_ngrams[max_char_n - 1].update_freq([],i.chr, $test != nil)}
+      char_ngrams[max_char_n - 1].update_freq([],"", $test != nil)
+      char_ngrams[max_char_n - 1].set_freq_delete(false) if method == PPMC
+    end
     char_ngrams[max_char_n - 1].set_memory(memory + 256) if method == PPMC
 
     [ngrams,char_ngrams]
@@ -154,9 +157,11 @@ class NgramCompression
 
   def ppm_compress(words)
     #1(word長さ:ω符号)1(word:RangeCode)1(char:RangeCode)
+    #1(word長さ:ω符号)1(word:RangeCode)1(char長さ:ω符号)1(char:RangeCode)1(charで復号できないASCII)
     update = $nonupdate ? false : true
     bin = 1 #head
     cbin = 1
+    ascii_bin = 1 if $negative_order
 
     ngrams,char_ngrams = ppm_table($ipath)
     rc = RangeCoder.new
@@ -183,8 +188,12 @@ class NgramCompression
             cbin,exist = char_ngram.freq(char_rc,char_exclusion,cbin,chars[(j - (char_ngram.n - 1))..j],update) if j >= char_ngram.n - 1
             exist
           end
-          fail += 1 if char_hit == false
-          #bin <<= 8 if char_hit == nil
+          if char_hit == false
+            raise 'cannot encode character' if !$negative_order
+            data = char.unpack1("C")
+            ascii_bin <<= 8
+            ascii_bin += data
+          end
         end
       end
     end
@@ -197,8 +206,10 @@ class NgramCompression
     result = 1 #0対策
     result = omega(result,bin.bit_length) #wordの長さ
     result = (result << bin.bit_length) + bin #word本体
+    result = omega(result,cbin.bit_length) if $negative_order #charの長さ
     result = (result << cbin.bit_length) + cbin #char本体
-    result <<= (fail * 8) #ascii code
+    result = (result << ascii_bin.bit_length) + ascii_bin if $negative_order #ascii_code
+    result
   end
 
   def ppm_decompress(bin)
@@ -220,8 +231,12 @@ class NgramCompression
     length -= 1
     length = rc.load_low(bin,length)
 
+    char_size,clength = decode_omega(bin,clength) if $negative_order
+    ascii_length = clength - char_size if $negative_order
     clength -= 1
     clength = char_rc.load_low(cbin,clength)
+
+    ascii_length -= 1 if $negative_order
 
     pre_words = []
     words = []
@@ -252,6 +267,17 @@ class NgramCompression
               break symbol if symbol
             end
           end
+
+          if char == nil
+            if $negative_order
+              char_data = (0..7).reduce(0) {|data,time| data <<= 1; data + bin[ascii_length - time] } #8ビット抜き出す
+              char = char_data.chr
+              ascii_length -= 8
+            else
+              raise "cannot decode character"
+            end
+          end
+
           esc_char_ngrams.each do |char_ngram|
             char_ngram.update_freq(pre_chars[pre_chars.size - char_ngram.n + 1,char_ngram.n - 1], char ,true) if update #頻度表の更新
           end

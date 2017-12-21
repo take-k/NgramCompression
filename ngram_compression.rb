@@ -171,8 +171,6 @@ class NgramCompression
     char_rc = RangeCoder.new
     char_exclusion = exclusion_collection.new unless $nonexclusion
 
-    fail = 0
-
     words << "\x00"
     words.each_with_index do |word,i|
       exclusion.clear unless $nonexclusion
@@ -270,7 +268,7 @@ class NgramCompression
 
           if char == nil
             if $negative_order
-              char_data = (0..7).reduce(0) {|data,time| data <<= 1; data + bin[ascii_length - time] } #8ビット抜き出す
+              char_data = (1..8).reduce(0) {|data,time| data <<= 1; data + bin[ascii_length - time] } #8ビット抜き出す
               char = char_data.chr
               ascii_length -= 8
             else

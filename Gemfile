@@ -5,3 +5,4 @@ gem 'test-unit'
 gem 'pry-byebug'
 
 gem 'memprof2'
+gem 'gnuplot'

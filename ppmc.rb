@@ -66,7 +66,7 @@ class PPMC < NgramTableFromFile
     end
 
     if @freq_upper
-      freq_number = encode_last_dic.count
+      freq_number = encode_last_dic.size
       if freq_number > @freq_upper
         decrease_freq(encode_last_dic)
       end

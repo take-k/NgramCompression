@@ -9,6 +9,7 @@ require './lz78_compression'
 require './ppmc'
 require './ppmc_opt'
 require './freq_table'
+require 'memprof2'
 
 include Benchmark
 
@@ -42,6 +43,7 @@ opts.on("--opath[=path]") { |v| $opath = v}
 opts.on("--benchmark") { |v| $benchmark = true}
 opts.on("--memory[=value]") { |v| $memory = v.to_i}
 opts.on("--negative-order") { |v| $negative_order = true}
+opts.on("--memprof") { |v| $memprof = true}
 
 opts.parse!(ARGV)
 
@@ -364,6 +366,8 @@ class NgramCompression
   end
 end
 
+Memprof2.start if $memprof
+
 ngram = NgramCompression.new
 if $info
   bin = 0
@@ -381,3 +385,6 @@ else
   bin = ngram.compress $targetfile #cantrbry/alice29.txt
   ngram.decode(bin) if $test
 end
+
+Memprof2.report(out: "./report") if $memprof
+Memprof2.stop if $memprof

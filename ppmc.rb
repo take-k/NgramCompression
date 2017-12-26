@@ -13,6 +13,10 @@ class PPMC < NgramTableFromFile
     @memory = memory
   end
 
+  def set_freq_upper(lower)
+    @freq_upper = lower
+  end
+
   def set_freq_delete(is_delete)
     @freq_delete = is_delete
   end
@@ -58,13 +62,13 @@ class PPMC < NgramTableFromFile
 
 
     if @memory && total >= @memory
-      encode_last_dic.each do |k, v|
-        if k == :esc || k == @end_symbol
-          encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
-        else
-          encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
-          encode_last_dic.delete(k) if encode_last_dic[k] == 0
-        end
+      decrease_freq(encode_last_dic)
+    end
+
+    if @freq_upper
+      freq_number = encode_last_dic.count
+      if freq_number > @freq_upper
+        decrease_freq(encode_last_dic)
       end
     end
 
@@ -73,6 +77,19 @@ class PPMC < NgramTableFromFile
     bin = rc.encode_shift(bin)
     [bin,hit]
   end
+
+
+  def decrease_freq(encode_last_dic)
+    encode_last_dic.each do |k, v|
+      if k == :esc || k == @end_symbol
+        encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
+      else
+        encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
+        encode_last_dic.delete(k) if encode_last_dic[k] == 0
+      end
+    end
+  end
+
 
   def symbol(rc,exclusion,bin,length,pre_words,update = false)
     exclusion ||= Set.new

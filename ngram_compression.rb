@@ -160,7 +160,7 @@ class NgramCompression
 
     if $memory && method == PPMC
       if $memory_zero
-        char_ngrams[max_char_n - 1].set_memory($memory_zero)
+        char_ngrams[max_char_n - 1].set_memory(memory + $memory_zero)
       else
         char_ngrams[max_char_n - 1].set_memory(memory + 256)
       end

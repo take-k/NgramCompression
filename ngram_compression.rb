@@ -42,6 +42,7 @@ opts.on("--ipath[=path]") { |v| $ipath = v}
 opts.on("--opath[=path]") { |v| $opath = v}
 opts.on("--benchmark") { |v| $benchmark = true}
 opts.on("--memory[=value]") { |v| $memory = v.to_i}
+opts.on("--memory-zero[=value]") { |v| $memory_zero = v.to_i}
 opts.on("--negative-order") { |v| $negative_order = true}
 opts.on("--memprof") { |v| $memprof = true}
 opts.on("--freq-upper[=value]") { |v| $freq_upper = v.to_i}
@@ -127,7 +128,7 @@ class NgramCompression
     method = $method || PPMCopt
     puts method.name if $info
 
-    memory = $memory || 2**32
+    memory = $memory
     freq_upper = $freq_upper || 2 ** 32
 
     ngrams = max_n.downto(1).map {|i|
@@ -156,7 +157,14 @@ class NgramCompression
       char_ngrams[max_char_n - 1].update_freq([],"", $test != nil)
       char_ngrams[max_char_n - 1].set_freq_delete(false) if method == PPMC
     end
-    char_ngrams[max_char_n - 1].set_memory(memory + 256) if $memory && method == PPMC
+
+    if $memory && method == PPMC
+      if $memory_zero
+        char_ngrams[max_char_n - 1].set_memory($memory_zero)
+      else
+        char_ngrams[max_char_n - 1].set_memory(memory + 256)
+      end
+    end
 
     [ngrams,char_ngrams]
   end

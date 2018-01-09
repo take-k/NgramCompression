@@ -66,8 +66,7 @@ class PPMC < NgramTableFromFile
     end
 
     if @freq_upper
-      freq_number = encode_last_dic.size
-      if freq_number > @freq_upper
+      if encode_last_dic.size > @freq_upper
         decrease_freq(encode_last_dic)
       end
     end
@@ -139,14 +138,11 @@ class PPMC < NgramTableFromFile
 
     if decode
       if @memory && @total >= @memory
-        encode_last_dic.each do |k, v|
-          if k == :esc || k == @end_symbol
-            encode_last_dic[k] = encode_last_dic[k] >> 1 | 1
-          else
-            encode_last_dic[k] = encode_last_dic[k] >> 1 | (@freq_delete ? 0 : 1)
-            encode_last_dic.delete(k) if encode_last_dic[k] == 0
-          end
-        end
+        decrease_freq(encode_last_dic)
+      end
+
+      if @freq_upper && encode_last_dic.size > @freq_upper
+        decrease_freq(encode_last_dic)
       end
     end
 
